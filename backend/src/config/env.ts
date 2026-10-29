@@ -36,8 +36,8 @@ export const env = {
   TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN || '',
   TELEGRAM_CHAT_ID: process.env.TELEGRAM_CHAT_ID || '',
 
-  WHATSAPP_PHONE_NUMBER_ID: process.env.WHATSAPP_PHONE_NUMBER_ID || '',
-  WHATSAPP_ACCESS_TOKEN: process.env.WHATSAPP_ACCESS_TOKEN || '',
-  WHATSAPP_VERIFY_TOKEN: process.env.WHATSAPP_VERIFY_TOKEN || 'rizagent_whatsapp_webhook_token_2026',
-  WHATSAPP_APP_SECRET: process.env.WHATSAPP_APP_SECRET || '',
+  WHATSAPP_PHONE_NUMBER_ID: (process.env.WHATSAPP_PHONE_NUMBER_ID || '').trim().replace(/^["']|["']$/g, ''),
+  WHATSAPP_ACCESS_TOKEN: (process.env.WHATSAPP_ACCESS_TOKEN || '').trim().replace(/^["']|["']$/g, ''),
+  WHATSAPP_VERIFY_TOKEN: (process.env.WHATSAPP_VERIFY_TOKEN || 'rizagent_whatsapp_webhook_token_2026').trim().replace(/^["']|["']$/g, ''),
+  WHATSAPP_APP_SECRET: (process.env.WHATSAPP_APP_SECRET || '').trim().replace(/^["']|["']$/g, ''),
 };
