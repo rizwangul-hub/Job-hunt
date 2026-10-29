@@ -1,12 +1,21 @@
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import crypto from 'crypto';
 
-const uploadDir = path.resolve(__dirname, '../../uploads/cvs');
+// In serverless environments (like Vercel), use os.tmpdir() (/tmp), otherwise local persistent folder
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+const uploadDir = isServerless
+  ? path.join(os.tmpdir(), 'rizagent-uploads')
+  : path.resolve(__dirname, '../../uploads/cvs');
 
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+try {
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+} catch {
+  // Graceful fallback if filesystem is read-only
 }
 
 const storage = multer.diskStorage({

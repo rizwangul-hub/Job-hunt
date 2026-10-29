@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 // Dynamically use VITE_API_URL in production (e.g., on Vercel) or fallback to '/api' for Vite dev proxy
-const rawBaseUrl = (import.meta.env.VITE_API_URL as string | undefined) || '';
+const metaEnv = (import.meta as any).env || {};
+const rawBaseUrl: string = metaEnv.VITE_API_URL || '';
 const baseURL = rawBaseUrl
   ? rawBaseUrl.endsWith('/api')
     ? rawBaseUrl

@@ -72,6 +72,28 @@ export function createApp(): Application {
   // Static Assets (Screenshots & Public attachments)
   app.use('/screenshots', express.static(path.resolve(__dirname, '../screenshots')));
 
+  // Root status check
+  app.get('/', (_req: Request, res: Response) => {
+    res.json({
+      status: 'online',
+      service: 'RizAgent AI Backend API',
+      version: '2.4.0',
+      timestamp: new Date().toISOString(),
+      endpoints: {
+        health: '/api/health',
+        auth: '/api/auth',
+        jobs: '/api/jobs',
+        applications: '/api/applications',
+        webhooks: '/api/webhooks/whatsapp'
+      }
+    });
+  });
+
+  // Favicon handler
+  app.get('/favicon.ico', (_req: Request, res: Response) => {
+    res.status(204).end();
+  });
+
   // Health Route
   app.get('/api/health', (_req: Request, res: Response) => {
     res.json({

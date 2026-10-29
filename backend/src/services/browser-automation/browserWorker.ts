@@ -1,5 +1,6 @@
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import { validateSafeUrl } from './urlSafety';
 import { analyzeFormHtml, DetectedFormStructure } from './formDetector';
 import { logger } from '../../utils/logger';
@@ -23,9 +24,17 @@ class BrowserAutomationWorker {
   private screenshotsDir: string;
 
   constructor() {
-    this.screenshotsDir = path.resolve(__dirname, '../../../screenshots');
-    if (!fs.existsSync(this.screenshotsDir)) {
-      fs.mkdirSync(this.screenshotsDir, { recursive: true });
+    const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+    this.screenshotsDir = isServerless
+      ? path.join(os.tmpdir(), 'rizagent-screenshots')
+      : path.resolve(__dirname, '../../../screenshots');
+
+    try {
+      if (!fs.existsSync(this.screenshotsDir)) {
+        fs.mkdirSync(this.screenshotsDir, { recursive: true });
+      }
+    } catch {
+      // Safe fallback for read-only environments
     }
   }
 
