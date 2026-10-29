@@ -21,6 +21,9 @@ import webhookRoutes from './routes/webhookRoutes';
 export function createApp(): Application {
   const app = express();
 
+  // Enable trust proxy for Vercel / reverse proxy deployment
+  app.set('trust proxy', 1);
+
   // Security Middleware
   app.use(
     helmet({
@@ -73,7 +76,7 @@ export function createApp(): Application {
   app.use('/screenshots', express.static(path.resolve(__dirname, '../screenshots')));
 
   // Root status check
-  app.get('/', (_req: Request, res: Response) => {
+  app.get(['/', '/api', '/api/'], (_req: Request, res: Response) => {
     res.json({
       status: 'online',
       service: 'RizAgent AI Backend API',
