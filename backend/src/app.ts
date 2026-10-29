@@ -94,7 +94,7 @@ export function createApp(): Application {
   app.use('/screenshots', express.static(path.resolve(__dirname, '../screenshots')));
 
   // Root status check
-  app.get(['/', '/api', '/api/'], (_req: Request, res: Response) => {
+  app.get(['/', '/api', '/api/', '/src/app', '/api/index'], (_req: Request, res: Response) => {
     res.json({
       status: 'online',
       service: 'RizAgent AI Backend API',
