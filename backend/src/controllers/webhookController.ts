@@ -48,6 +48,29 @@ export function verifyMetaSignature(req: AuthenticatedRawRequest): boolean {
   }
 }
 
+export function getWhatsAppWebhookStatus(_req: Request, res: Response): void {
+  const configured = String(env.WHATSAPP_VERIFY_TOKEN || '').trim().replace(/^["']|["']$/g, '');
+  const hint = configured.length >= 6
+    ? `${configured.substring(0, 3)}...${configured.slice(-3)}`
+    : '***';
+
+  res.json({
+    status: 'ready',
+    service: 'Meta WhatsApp Cloud API Webhook Receiver',
+    endpoints: {
+      getVerification: '/api/webhooks/whatsapp',
+      postEventReceiver: '/api/webhooks/whatsapp'
+    },
+    verificationTokenConfigured: Boolean(configured),
+    verificationTokenLength: configured.length,
+    verificationTokenHint: hint,
+    defaultTokenAccepted: true,
+    appSecretConfigured: Boolean(env.WHATSAPP_APP_SECRET),
+    phoneNumberIdConfigured: Boolean(env.WHATSAPP_PHONE_NUMBER_ID),
+    accessTokenConfigured: Boolean(env.WHATSAPP_ACCESS_TOKEN)
+  });
+}
+
 /**
  * GET /api/webhooks/whatsapp
  * Meta WhatsApp Cloud API Webhook Subscription Verification

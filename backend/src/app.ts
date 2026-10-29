@@ -98,14 +98,15 @@ export function createApp(): Application {
     res.json({
       status: 'online',
       service: 'RizAgent AI Backend API',
-      version: '2.4.0',
+      version: '2.4.1',
       timestamp: new Date().toISOString(),
       endpoints: {
         health: '/api/health',
         auth: '/api/auth',
         jobs: '/api/jobs',
         applications: '/api/applications',
-        webhooks: '/api/webhooks/whatsapp'
+        webhooks: '/api/webhooks/whatsapp',
+        webhookStatus: '/api/webhooks/whatsapp/status'
       }
     });
   });
@@ -120,7 +121,7 @@ export function createApp(): Application {
     res.json({
       status: 'healthy',
       service: 'RizAgent AI Backend',
-      version: '2.4.0',
+      version: '2.4.1',
       timestamp: new Date().toISOString(),
       aiProvider: env.AI_PROVIDER,
       mode: env.NODE_ENV
