@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RizAgent AI — Autonomous Job Hunter & Outreach Engine</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              400: '#34d399',
+              500: '#10b981',
+              600: '#059669',
+            },
+            accent: {
+              cyan: '#06b6d4',
+              emerald: '#10b981',
+              violet: '#8b5cf6',
+              amber: '#f59e0b',
+              rose: '#f43f5e',
+            },
+            dark: {
+              950: '#090d16',
+              900: '#0d1322',
+              850: '#121a2d',
+              800: '#17223b',
+              700: '#233256',
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+          animation: {
+            'pulse-glow': 'pulseGlow 2.5s infinite',
+            'ping-slow': 'ping 2.5s cubic-bezier(0, 0, 0.2, 1) infinite',
+          },
+          keyframes: {
+            pulseGlow: {
+              '0%, 100%': { opacity: 1, filter: 'drop-shadow(0 0 12px rgba(16, 185, 129, 0.6))' },
+              '50%': { opacity: 0.6, filter: 'drop-shadow(0 0 4px rgba(16, 185, 129, 0.2))' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0d1322;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #233256;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #374151;
+    }
+
+    .glass-panel {
+      background: rgba(13, 19, 34, 0.78);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .glass-panel-interactive {
+      background: rgba(18, 26, 45, 0.65);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .glass-panel-interactive:hover {
+      background: rgba(23, 34, 59, 0.85);
+      border-color: rgba(16, 185, 129, 0.35);
+      transform: translateY(-1px);
+    }
+    .glow-dot {
+      box-shadow: 0 0 10px currentColor;
+    }
+  </style>
+</head>
+<body class="bg-dark-950 text-slate-100 font-sans min-h-screen antialiased flex flex-col selection:bg-brand-500 selection:text-white">
+
+  <!-- TOP STATUS & NAV BAR -->
+  <header class="border-b border-slate-800/80 bg-dark-900/90 backdrop-blur-md sticky top-0 z-40 px-4 lg:px-6 py-3">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      
+      <!-- Brand & Agent Indicator -->
+      <div class="flex items-center gap-3">
+        <div class="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-accent-cyan shadow-lg shadow-brand-500/20">
+          <i data-lucide="bot" class="w-5 h-5 text-white"></i>
+          <span id="agentStatusPulse" class="absolute -top-1 -right-1 flex h-3 w-3">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+          </span>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-base tracking-tight text-white flex items-center gap-1.5">
+              RizAgent <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-mono">v2.4 Live</span>
+            </span>
+            <span class="text-xs text-slate-400 hidden sm:inline">| Full-Stack Autonomous Pipeline</span>
+          </div>
+          <p class="text-xs text-slate-400 flex items-center gap-1.5">
+            Targeting: <span class="text-slate-200 font-medium">MERN & React Native</span> &bull; <span>Rizwan Ullah (RizMern)</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- Controls & Quick Actions -->
+      <div class="flex items-center gap-2 sm:gap-3 ml-auto">
+        
+        <!-- Live Agent Master Switch -->
+        <div class="flex items-center bg-dark-850 border border-slate-800 rounded-lg p-1 text-xs">
+          <button id="toggleAgentBtn" onclick="toggleAgentState()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition bg-emerald-500 text-slate-950 font-semibold shadow-sm">
+            <i data-lucide="play" class="w-3.5 h-3.5"></i>
+            <span id="agentStateLabel">Agent Active</span>
+          </button>
+          <button onclick="simulateIncomingPost()" class="flex items-center gap-1 px-3 py-1.5 rounded-md text-slate-300 hover:text-white hover:bg-slate-800/80 transition" title="Simulate recruiter post in WhatsApp group">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-accent-cyan"></i>
+            <span class="hidden md:inline">Simulate Job Post</span>
+          </button>
+        </div>
+
+        <!-- Notification Bell with Counter -->
+        <button onclick="switchTab('replies')" class="relative p-2.5 rounded-lg bg-dark-850 hover:bg-dark-800 border border-slate-800 text-slate-300 hover:text-white transition">
+          <i data-lucide="bell" class="w-4 h-4"></i>
+          <span id="unreadReplyBadge" class="absolute -top-1 -right-1 px-1.5 py-0.2 text-[10px] font-bold rounded-full bg-accent-rose text-white border border-dark-950">2</span>
+        </button>
+
+        <!-- Profile Avatar badge -->
+        <div class="flex items-center gap-2 pl-2 border-l border-slate-800">
+          <div class="w-8 h-8 rounded-full bg-gradient-to-r from-emerald-500 to-teal-700 flex items-center justify-center text-xs font-bold text-white uppercase shadow-inner">
+            RU
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- LIVE CHANNEL MONITOR TICKER -->
+  <div class="bg-dark-900 border-b border-slate-800/50 px-4 py-2 text-xs overflow-x-auto whitespace-nowrap scrollbar-none">
+    <div class="max-w-7xl mx-auto flex items-center gap-6 text-slate-400">
+      <div class="flex items-center gap-2 font-mono text-[11px] text-emerald-400 uppercase tracking-wider">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+        Active Listeners:
+      </div>
+      
+      <div class="flex items-center gap-2 text-slate-300 bg-dark-850 px-2.5 py-1 rounded-md border border-slate-800">
+        <i data-lucide="message-square" class="w-3.5 h-3.5 text-emerald-400"></i>
+        <span>WhatsApp: <strong class="text-white font-normal">Pak Tech Internships & Jobs (#pk-mern)</strong></span>
+        <span class="text-emerald-400 text-[10px] bg-emerald-500/10 px-1 rounded">Polling (2s)</span>
+      </div>
+
+      <div class="flex items-center gap-2 text-slate-300 bg-dark-850 px-2.5 py-1 rounded-md border border-slate-800">
+        <i data-lucide="send" class="w-3.5 h-3.5 text-cyan-400"></i>
+        <span>Telegram: <strong class="text-white font-normal">Dev Opportunities PK (@devjobs_pk)</strong></span>
+        <span class="text-cyan-400 text-[10px] bg-cyan-500/10 px-1 rounded">Webhook OK</span>
+      </div>
+
+      <div class="flex items-center gap-2 text-slate-300 bg-dark-850 px-2.5 py-1 rounded-md border border-slate-800">
+        <i data-lucide="linkedin" class="w-3.5 h-3.5 text-blue-400"></i>
+        <span>LinkedIn Stream: <strong class="text-white font-normal">#FullStack #MERN #ReactJobs</strong></span>
+        <span class="text-blue-400 text-[10px] bg-blue-500/10 px-1 rounded">Feed Ready</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN DASHBOARD CONTENT -->
+  <main class="flex-1 max-w-7xl mx-auto w-full p-4 lg:p-6 flex flex-col gap-6">
+
+    <!-- KPI STATS CARDS -->
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="glass-panel p-4 rounded-xl border border-slate-800">
+        <div class="flex items-center justify-between text-slate-400 mb-2">
+          <span class="text-xs font-medium">Scanned Today</span>
+          <i data-lucide="radar" class="w-4 h-4 text-slate-500"></i>
+        </div>
+        <div class="flex items-baseline gap-2">
+          <span id="statScanned" class="text-2xl font-bold font-mono text-white">184</span>
+          <span class="text-xs text-emerald-400 font-mono">+12/hr</span>
+        </div>
+        <div class="w-full bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden">
+          <div class="bg-slate-400 h-full rounded-full" style="width: 75%"></div>
+        </div>
+      </div>
+
+      <div class="glass-panel p-4 rounded-xl border border-slate-800">
+        <div class="flex items-center justify-between text-slate-400 mb-2">
+          <span class="text-xs font-medium">Full-Stack Matches</span>
+          <i data-lucide="check-check" class="w-4 h-4 text-accent-cyan"></i>
+        </div>
+        <div class="flex items-baseline gap-2">
+          <span id="statMatches" class="text-2xl font-bold font-mono text-accent-cyan">19</span>
+          <span class="text-xs text-slate-400">Score &ge; 80%</span>
+        </div>
+        <div class="w-full bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden">
+          <div class="bg-accent-cyan h-full rounded-full" style="width: 60%"></div>
+        </div>
+      </div>
+
+      <div class="glass-panel p-4 rounded-xl border border-slate-800">
+        <div class="flex items-center justify-between text-slate-400 mb-2">
+          <span class="text-xs font-medium">Outreaches Dispatched</span>
+          <i data-lucide="send" class="w-4 h-4 text-emerald-400"></i>
+        </div>
+        <div class="flex items-baseline gap-2">
+          <span id="statDispatched" class="text-2xl font-bold font-mono text-emerald-400">14</span>
+          <span class="text-xs text-emerald-400">WhatsApp & Email</span>
+        </div>
+        <div class="w-full bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden">
+          <div class="bg-emerald-500 h-full rounded-full" style="width: 72%"></div>
+        </div>
+      </div>
+
+      <div class="glass-panel p-4 rounded-xl border border-slate-800">
+        <div class="flex items-center justify-between text-slate-400 mb-2">
+          <span class="text-xs font-medium">Recruiter Replies</span>
+          <i data-lucide="message-circle" class="w-4 h-4 text-accent-rose"></i>
+        </div>
+        <div class="flex items-baseline gap-2">
+          <span id="statReplies" class="text-2xl font-bold font-mono text-accent-rose">4</span>
+          <span class="text-xs text-accent-rose font-medium bg-rose-500/10 px-1.5 rounded">2 Pending</span>
+        </div>
+        <div class="w-full bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden">
+          <div class="bg-rose-500 h-full rounded-full" style="width: 40%"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- NAVIGATION TABS -->
+    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+      <div class="flex items-center gap-2">
+        <button id="tabFeedBtn" onclick="switchTab('feed')" class="px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 bg-slate-800 text-white border border-slate-700">
+          <i data-lucide="stream" class="w-4 h-4 text-emerald-400"></i>
+          <span>Live Opportunities & Matches</span>
+          <span id="matchCounterBadge" class="bg-emerald-500/20 text-emerald-400 text-xs px-2 py-0.5 rounded-full font-mono">5</span>
+        </button>
+        <button id="tabRepliesBtn" onclick="switchTab('replies')" class="px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-dark-850">
+          <i data-lucide="inbox" class="w-4 h-4 text-accent-rose"></i>
+          <span>Recruiter Replies & Alerts</span>
+          <span id="tabReplyCountBadge" class="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full font-mono">2</span>
+        </button>
+        <button id="tabConfigBtn" onclick="switchTab('config')" class="px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-dark-850">
+          <i data-lucide="sliders" class="w-4 h-4 text-accent-cyan"></i>
+          <span>Agent Profile & Pitch Settings</span>
+        </button>
+      </div>
+
+      <!-- Quick Filter -->
+      <div id="filterContainer" class="hidden sm:flex items-center gap-2 text-xs">
+        <span class="text-slate-500">Filter:</span>
+        <button onclick="filterPosts('all')" class="filter-chip px-2.5 py-1 rounded bg-slate-800 text-slate-200" data-filter="all">All</button>
+        <button onclick="filterPosts('auto-sent')" class="filter-chip px-2.5 py-1 rounded hover:bg-slate-800 text-slate-400" data-filter="auto-sent">Auto-Sent</button>
+        <button onclick="filterPosts('pending')" class="filter-chip px-2.5 py-1 rounded hover:bg-slate-800 text-slate-400" data-filter="pending">Review Needed</button>
+      </div>
+    </div>
+
+    <!-- VIEW 1: LIVE FEED & MATCH EVALUATION -->
+    <div id="viewFeed" class="space-y-4">
+      
+      <!-- Top banner for testing -->
+      <div class="glass-panel p-3.5 rounded-xl flex flex-wrap items-center justify-between gap-3 border-emerald-500/20 bg-emerald-950/20">
+        <div class="flex items-center gap-3">
+          <span class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+            <i data-lucide="shield-check" class="w-5 h-5"></i>
+          </span>
+          <div>
+            <p class="text-sm font-semibold text-emerald-300">Auto-Outreach Criteria: MERN Stack &bull; Full Stack Developer &bull; React Native</p>
+            <p class="text-xs text-slate-400">Agent auto-dispatches tailored CV & Portfolio message if Match &ge; 85% and valid contact is identified.</p>
+          </div>
+        </div>
+        <button onclick="simulateIncomingPost()" class="text-xs px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 font-semibold hover:bg-emerald-400 flex items-center gap-1.5 transition">
+          <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+          Simulate Incoming Job Alert
+        </button>
+      </div>
+
+      <!-- Job Cards Stream List -->
+      <div id="jobStreamContainer" class="space-y-3">
+        <!-- Rendered via JS -->
+      </div>
+    </div>
+
+    <!-- VIEW 2: RECRUITER REPLIES & NOTIFICATIONS -->
+    <div id="viewReplies" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
+      
+      <!-- Left list of incoming conversations -->
+      <div class="lg:col-span-1 glass-panel rounded-xl p-4 flex flex-col gap-3">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <i data-lucide="message-square" class="w-4 h-4 text-emerald-400"></i>
+            Active Inquiries
+          </h3>
+          <span class="text-xs text-slate-400">3 Total</span>
+        </div>
+
+        <div id="replyListContainer" class="space-y-2 overflow-y-auto max-h-[600px] pr-1">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <button onclick="simulateRecruiterReply()" class="mt-2 w-full py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center justify-center gap-2">
+          <i data-lucide="bell-ring" class="w-3.5 h-3.5 text-accent-rose"></i>
+          Trigger Simulated Recruiter Reply
+        </button>
+      </div>
+
+      <!-- Right detail view / conversation thread -->
+      <div class="lg:col-span-2 glass-panel rounded-xl p-5 flex flex-col justify-between h-[650px]">
+        <div id="conversationDetail" class="flex flex-col h-full">
+          <!-- Populated by selection -->
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 3: AGENT PROFILE & PITCH CONFIGURATION -->
+    <div id="viewConfig" class="hidden space-y-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <!-- Rizwan's Developer Profile & Credentials -->
+        <div class="glass-panel p-5 rounded-xl space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div class="flex items-center gap-2.5">
+              <i data-lucide="user-check" class="w-5 h-5 text-emerald-400"></i>
+              <h3 class="font-bold text-base text-white">Agent Sender Identity</h3>
+            </div>
+            <span class="text-xs font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Verified</span>
+          </div>
+
+          <div class="space-y-3 text-sm">
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">Full Name & Professional Handle</label>
+              <input type="text" id="configName" value="Rizwan Ullah (RizMern)" class="w-full bg-dark-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 text-sm focus:border-emerald-500 outline-none">
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">Target Roles & Specialization</label>
+              <input type="text" id="configRole" value="Full-Stack MERN Developer, React Native Mobile Engineer" class="w-full bg-dark-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 text-sm focus:border-emerald-500 outline-none">
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">Primary Tech Stack Keywords (LLM Match Tokens)</label>
+              <div class="flex flex-wrap gap-1.5 p-2 bg-dark-900 border border-slate-800 rounded-lg">
+                <span class="px-2 py-0.5 text-xs rounded bg-slate-800 text-emerald-400 border border-slate-700">React.js</span>
+                <span class="px-2 py-0.5 text-xs rounded bg-slate-800 text-emerald-400 border border-slate-700">Node.js</span>
+                <span class="px-2 py-0.5 text-xs rounded bg-slate-800 text-emerald-400 border border-slate-700">Express.js</span>
+                <span class="px-2 py-0.5 text-xs rounded bg-slate-800 text-emerald-400 border border-slate-700">MongoDB</span>
+                <span class="px-2 py-0.5 text-xs rounded bg-slate-800 text-emerald-400 border border-slate-700">React Native</span>
+                <span class="px-2 py-0.5 text-xs rounded bg-slate-800 text-cyan-400 border border-slate-700">Tailwind CSS</span>
+                <span class="px-2 py-0.5 text-xs rounded bg-slate-800 text-cyan-400 border border-slate-700">TypeScript</span>
+                <span class="px-2 py-0.5 text-xs rounded bg-slate-800 text-cyan-400 border border-slate-700">REST APIs</span>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Portfolio Link</label>
+                <input type="text" id="configPortfolio" value="https://rizwanullah.dev" class="w-full bg-dark-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 text-xs font-mono focus:border-emerald-500 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Direct WhatsApp (Pakistan)</label>
+                <input type="text" id="configPhone" value="+92 300 0000000" class="w-full bg-dark-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 text-xs font-mono focus:border-emerald-500 outline-none">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">CV File Attachment Badge</label>
+              <div class="flex items-center justify-between p-2.5 bg-dark-900 rounded-lg border border-slate-800">
+                <div class="flex items-center gap-2">
+                  <i data-lucide="file-text" class="w-4 h-4 text-rose-400"></i>
+                  <span class="text-xs font-mono text-slate-200">Rizwan_Ullah_FullStack_MERN_Resume.pdf</span>
+                </div>
+                <span class="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/30">Auto-Attached</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pitch Template & Agent Rules -->
+        <div class="glass-panel p-5 rounded-xl space-y-4 flex flex-col justify-between">
+          <div class="space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div class="flex items-center gap-2.5">
+                <i data-lucide="cpu" class="w-5 h-5 text-cyan-400"></i>
+                <h3 class="font-bold text-base text-white">Auto-Pitch AI Template</h3>
+              </div>
+              <span class="text-xs text-slate-400">Dynamic variables supported</span>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">WhatsApp & Direct Message Prompt</label>
+              <textarea id="configPitchTemplate" rows="7" class="w-full bg-dark-900 border border-slate-800 rounded-lg p-3 text-slate-200 text-xs font-mono leading-relaxed focus:border-emerald-500 outline-none resize-none">Hi {{contact_name}}, I noticed your post regarding the {{role_title}} role requiring {{matched_tech}}. 
+
+I'm Rizwan Ullah, a Full-Stack MERN & Mobile developer with hands-on experience building production web apps (MongoDB, Express, React, Node.js) and cross-platform mobile apps with React Native.
+
+🚀 Live Portfolio: {{portfolio_url}}
+📄 Attached: Resume PDF
+
+I'd be glad to discuss how I can contribute immediately. Looking forward to hearing from you!</textarea>
+            </div>
+
+            <div class="bg-dark-900 p-3 rounded-lg border border-slate-800 space-y-2">
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-slate-300">Min. Match Threshold to Auto-Send</span>
+                <span id="thresholdDisplay" class="font-mono text-emerald-400 font-bold">85%</span>
+              </div>
+              <input type="range" id="thresholdSlider" min="70" max="95" value="85" oninput="document.getElementById('thresholdDisplay').innerText = this.value + '%'" class="w-full accent-emerald-500 bg-slate-800 h-1 rounded cursor-pointer">
+              <p class="text-[11px] text-slate-500">Posts scoring below this threshold will be flagged as "Review Needed" rather than auto-dispatched.</p>
+            </div>
+          </div>
+
+          <div class="pt-3">
+            <button onclick="saveAgentConfig()" class="w-full py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-lg text-sm flex items-center justify-center gap-2 transition">
+              <i data-lucide="save" class="w-4 h-4"></i>
+              Save Agent Preferences
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- MODAL: POST DETAILS & DISPATCH INSPECTOR -->
+  <div id="inspectorModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="glass-panel w-full max-w-2xl rounded-2xl border border-slate-700 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-dark-900">
+        <div class="flex items-center gap-2.5">
+          <i data-lucide="sparkles" class="w-5 h-5 text-emerald-400"></i>
+          <div>
+            <h3 class="text-base font-bold text-white">LLM Classification & Outreach Dispatch</h3>
+            <p class="text-xs text-slate-400">Detailed parsing results and candidate action</p>
+          </div>
+        </div>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1 rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-5 space-y-4 overflow-y-auto" id="modalContent">
+        <!-- Injected via JavaScript -->
+      </div>
+
+      <div class="p-4 border-t border-slate-800 bg-dark-900 flex items-center justify-end gap-3" id="modalFooter">
+        <!-- Actions -->
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- JAVASCRIPT LOGIC & ENGINE -->
+  <script>
+    // State management
+    let agentActive = true;
+    let minThreshold = 85;
+    let activeFilter = 'all';
+
+    // Mock incoming opportunities pool
+    const mockFeed = [
+      {
+        id: 'job-101',
+        channel: 'whatsapp',
+        groupName: 'Pakistan Tech Internships & Jobs',
+        poster: 'Hassan Recruiter (DevSync Lahore)',
+        contact: '+92 321 8847291',
+        contactType: 'whatsapp',
+        rawText: 'Urgent hiring! Looking for Full-Stack MERN Developer (React, Node, Express, MongoDB) for a 6-month contract with possibility of full-time. Remote in PK. Share portfolio and CV to WhatsApp: 03218847291.',
+        matchedTech: ['React', 'Node.js', 'Express.js', 'MongoDB', 'REST APIs'],
+        matchScore: 96,
+        status: 'auto-sent',
+        time: '3 mins ago',
+        pitchSent: "Hi Hassan, I noticed your post regarding the Full-Stack MERN Developer role. I'm Rizwan Ullah, specializing in MongoDB, Express, React, and Node.js. My portfolio is at https://rizwanullah.dev and my resume is attached. Let's discuss!",
+      },
+      {
+        id: 'job-102',
+        channel: 'telegram',
+        groupName: 'Dev Opportunities PK (@devjobs_pk)',
+        poster: 'InnovateX Careers',
+        contact: 'jobs@innovatex.io',
+        contactType: 'email',
+        rawText: 'Junior to Mid-Level React Native Developer needed to collaborate on an ongoing fintech mobile application. Tailwind + React Native CLI. Email resumes to jobs@innovatex.io with subject [Mobile Dev - Riz].',
+        matchedTech: ['React Native', 'Tailwind CSS', 'Mobile UI'],
+        matchScore: 89,
+        status: 'auto-sent',
+        time: '18 mins ago',
+        pitchSent: "Hello InnovateX team, I saw your opening for a React Native Developer. As a mobile engineer proficient in React Native and modern UI workflows, I'd love to contribute. Please review my CV attached and portfolio.",
+      },
+      {
+        id: 'job-103',
+        channel: 'whatsapp',
+        groupName: 'Pakistan Tech Internships & Jobs',
+        poster: 'Ayesha HR',
+        contact: '+92 301 5554321',
+        contactType: 'whatsapp',
+        rawText: 'Need an intern for Frontend React only (Next.js experience a plus). Stipend 30k-40k/month. Direct message portfolio links on WhatsApp.',
+        matchedTech: ['React.js', 'Frontend'],
+        matchScore: 78,
+        status: 'pending',
+        time: '42 mins ago',
+        pitchSent: null,
+      },
+      {
+        id: 'job-104',
+        channel: 'linkedin',
+        groupName: 'LinkedIn Feed Stream',
+        poster: 'CloudGrid Systems',
+        contact: 'hr@cloudgridsys.com',
+        contactType: 'email',
+        rawText: 'Hiring Senior Java / Spring Boot architect. 7+ years required in Kubernetes, AWS and microservices architecture.',
+        matchedTech: ['Java', 'Spring Boot'],
+        matchScore: 28,
+        status: 'discarded',
+        time: '1 hr ago',
+        pitchSent: null,
+      }
+    ];
+
+    // Mock Recruiter responses
+    let recruiterReplies = [
+      {
+        id: 'rep-1',
+        jobId: 'job-101',
+        recruiter: 'Hassan Recruiter (DevSync)',
+        channel: 'WhatsApp',
+        time: '10 mins ago',
+        read: false,
+        avatar: 'HR',
+        lastMessage: 'Salam Rizwan! Went through your portfolio and MERN demos, specifically the dashboard and APIs. Can we get on a quick 15-min Google Meet call tomorrow at 3:00 PM PKT?',
+        messages: [
+          { sender: 'agent', text: "Hi Hassan, I noticed your post regarding the Full-Stack MERN Developer role. I'm Rizwan Ullah, specializing in MongoDB, Express, React, and Node.js. My portfolio is at https://rizwanullah.dev and my resume is attached. Let's discuss!", time: '25 mins ago' },
+          { sender: 'recruiter', text: 'Salam Rizwan! Went through your portfolio and MERN demos, specifically the dashboard and APIs. Can we get on a quick 15-min Google Meet call tomorrow at 3:00 PM PKT?', time: '10 mins ago' }
+        ]
+      },
+      {
+        id: 'rep-2',
+        jobId: 'job-102',
+        recruiter: 'InnovateX Careers',
+        channel: 'Email',
+        time: '45 mins ago',
+        read: false,
+        avatar: 'IX',
+        lastMessage: 'Hi Rizwan, thank you for reaching out promptly. Your React Native experience looks solid. Could you share your GitHub repository links for mobile apps as well?',
+        messages: [
+          { sender: 'agent', text: 'Hello InnovateX team, I saw your opening for a React Native Developer. As a mobile engineer proficient in React Native and modern UI workflows, I would love to contribute.', time: '1 hr ago' },
+          { sender: 'recruiter', text: 'Hi Rizwan, thank you for reaching out promptly. Your React Native experience looks solid. Could you share your GitHub repository links for mobile apps as well?', time: '45 mins ago' }
+        ]
+      }
+    ];
+
+    let selectedReplyId = 'rep-1';
+
+    // Initialization
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      renderFeed();
+      renderRepliesList();
+      renderActiveConversation();
+      updateStats();
+
+      // Audio notification beep generator (Web Audio API)
+      window.playChirp = function() {
+        try {
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+          osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5
+          gain.gain.setValueAtTime(0.15, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.25);
+        } catch (e) {
+          console.warn('AudioContext not allowed yet', e);
+        }
+      };
+    });
+
+    // Tab Switching
+    function switchTab(tab) {
+      document.getElementById('viewFeed').classList.add('hidden');
+      document.getElementById('viewReplies').classList.add('hidden');
+      document.getElementById('viewConfig').classList.add('hidden');
+      
+      const feedBtn = document.getElementById('tabFeedBtn');
+      const repliesBtn = document.getElementById('tabRepliesBtn');
+      const configBtn = document.getElementById('tabConfigBtn');
+      const filterBox = document.getElementById('filterContainer');
+
+      [feedBtn, repliesBtn, configBtn].forEach(b => {
+        b.className = 'px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-dark-850';
+      });
+
+      if (tab === 'feed') {
+        document.getElementById('viewFeed').classList.remove('hidden');
+        feedBtn.className = 'px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 bg-slate-800 text-white border border-slate-700';
+        filterBox.classList.remove('hidden');
+      } else if (tab === 'replies') {
+        document.getElementById('viewReplies').classList.remove('hidden');
+        repliesBtn.className = 'px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 bg-slate-800 text-white border border-slate-700';
+        filterBox.classList.add('hidden');
+      } else if (tab === 'config') {
+        document.getElementById('viewConfig').classList.remove('hidden');
+        configBtn.className = 'px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 bg-slate-800 text-white border border-slate-700';
+        filterBox.classList.add('hidden');
+      }
+      lucide.createIcons();
+    }
+
+    // Toggle Agent Status
+    function toggleAgentState() {
+      agentActive = !agentActive;
+      const btn = document.getElementById('toggleAgentBtn');
+      const label = document.getElementById('agentStateLabel');
+      const pulse = document.getElementById('agentStatusPulse');
+
+      if (agentActive) {
+        btn.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition bg-emerald-500 text-slate-950 font-semibold shadow-sm";
+        btn.innerHTML = `<i data-lucide="play" class="w-3.5 h-3.5"></i><span id="agentStateLabel">Agent Active</span>`;
+        pulse.classList.remove('hidden');
+        showToast('Agent Activated', 'Listening on WhatsApp & Telegram group channels.', 'emerald');
+      } else {
+        btn.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition bg-amber-500/20 text-amber-300 border border-amber-500/30";
+        btn.innerHTML = `<i data-lucide="pause" class="w-3.5 h-3.5"></i><span id="agentStateLabel">Monitoring Paused</span>`;
+        pulse.classList.add('hidden');
+        showToast('Agent Paused', 'Outreach automation is temporarily suspended.', 'amber');
+      }
+      lucide.createIcons();
+    }
+
+    // Filter Posts
+    function filterPosts(type) {
+      activeFilter = type;
+      document.querySelectorAll('.filter-chip').forEach(btn => {
+        if (btn.dataset.filter === type) {
+          btn.className = 'filter-chip px-2.5 py-1 rounded bg-slate-800 text-slate-200 border border-slate-700';
+        } else {
+          btn.className = 'filter-chip px-2.5 py-1 rounded hover:bg-slate-800 text-slate-400';
+        }
+      });
+      renderFeed();
+    }
+
+    // Render Feed Cards
+    function renderFeed() {
+      const container = document.getElementById('jobStreamContainer');
+      let items = [...mockFeed];
+
+      if (activeFilter === 'auto-sent') {
+        items = items.filter(i => i.status === 'auto-sent');
+      } else if (activeFilter === 'pending') {
+        items = items.filter(i => i.status === 'pending');
+      }
+
+      container.innerHTML = items.map(job => {
+        const isHighMatch = job.matchScore >= 80;
+        const channelIcon = job.channel === 'whatsapp' ? 'message-circle' : (job.channel === 'telegram' ? 'send' : 'globe');
+        const channelColor = job.channel === 'whatsapp' ? 'text-emerald-400' : (job.channel === 'telegram' ? 'text-cyan-400' : 'text-blue-400');
+        
+        let statusBadge = '';
+        if (job.status === 'auto-sent') {
+          statusBadge = `<span class="inline-flex items-center gap-1 text-[11px] font-mono px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-semibold"><i data-lucide="check-check" class="w-3 h-3"></i> Auto-Pitch Dispatched</span>`;
+        } else if (job.status === 'pending') {
+          statusBadge = `<span class="inline-flex items-center gap-1 text-[11px] font-mono px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30"><i data-lucide="clock" class="w-3 h-3"></i> Approval Needed (${job.matchScore}%)</span>`;
+        } else {
+          statusBadge = `<span class="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-400">Discarded (Low Match)</span>`;
+        }
+
+        return `
+          <div class="glass-panel-interactive p-4 rounded-xl space-y-3 cursor-pointer" onclick="openInspector('${job.id}')">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <span class="p-1.5 rounded-lg bg-dark-900 border border-slate-800 ${channelColor}">
+                  <i data-lucide="${channelIcon}" class="w-4 h-4"></i>
+                </span>
+                <div>
+                  <h4 class="text-sm font-bold text-white flex items-center gap-2">
+                    ${job.poster}
+                    <span class="text-xs font-normal text-slate-400">in [${job.groupName}]</span>
+                  </h4>
+                  <p class="text-[11px] text-slate-500 font-mono">${job.time} &bull; Contact: ${job.contact}</p>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <div class="text-right">
+                  <span class="text-xs text-slate-400">Match:</span>
+                  <span class="font-mono font-bold text-sm ${isHighMatch ? 'text-emerald-400' : 'text-slate-400'}">${job.matchScore}%</span>
+                </div>
+                ${statusBadge}
+              </div>
+            </div>
+
+            <div class="bg-dark-900/80 p-3 rounded-lg border border-slate-800/80 text-xs text-slate-300 font-mono leading-relaxed">
+              ${escapeHtml(job.rawText)}
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between pt-1 gap-2">
+              <div class="flex flex-wrap gap-1.5">
+                ${job.matchedTech.map(t => `<span class="text-[11px] px-2 py-0.5 rounded bg-dark-900 text-slate-300 border border-slate-700/60 font-mono">${t}</span>`).join('')}
+              </div>
+
+              <div class="flex items-center gap-2 text-xs font-semibold text-emerald-400 hover:text-emerald-300">
+                <span>View Full Agent Analysis</span>
+                <i data-lucide="chevron-right" class="w-4 h-4"></i>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('matchCounterBadge').innerText = mockFeed.filter(m => m.matchScore >= 80).length;
+      lucide.createIcons();
+    }
+
+    // Modal Inspector
+    function openInspector(jobId) {
+      const job = mockFeed.find(j => j.id === jobId);
+      if (!job) return;
+
+      const modal = document.getElementById('inspectorModal');
+      const content = document.getElementById('modalContent');
+      const footer = document.getElementById('modalFooter');
+
+      const isHighMatch = job.matchScore >= 80;
+
+      content.innerHTML = `
+        <div class="space-y-4 text-xs">
+          <!-- Classification Summary -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-dark-900 p-3 rounded-xl border border-slate-800">
+            <div>
+              <span class="text-slate-500 block text-[10px]">SOURCE CHANNEL</span>
+              <span class="font-bold text-white capitalize">${job.channel}</span>
+            </div>
+            <div>
+              <span class="text-slate-500 block text-[10px]">DETECTED CONTACT</span>
+              <span class="font-mono text-emerald-400 font-bold">${job.contact}</span>
+            </div>
+            <div>
+              <span class="text-slate-500 block text-[10px]">EVALUATION SCORE</span>
+              <span class="font-mono font-bold ${isHighMatch ? 'text-emerald-400' : 'text-slate-400'}">${job.matchScore}% Full-Stack Match</span>
+            </div>
+            <div>
+              <span class="text-slate-500 block text-[10px]">AGENT ACTION</span>
+              <span class="font-bold capitalize text-white">${job.status}</span>
+            </div>
+          </div>
+
+          <!-- Raw Post Received -->
+          <div>
+            <label class="block text-slate-400 font-semibold mb-1">Raw Post Text from Channel:</label>
+            <div class="p-3 bg-dark-900 border border-slate-800 rounded-lg text-slate-300 font-mono leading-relaxed">
+              ${escapeHtml(job.rawText)}
+            </div>
+          </div>
+
+          <!-- LLM Tech Extraction -->
+          <div>
+            <label class="block text-slate-400 font-semibold mb-1">Extracted Developer Competencies:</label>
+            <div class="flex flex-wrap gap-2">
+              ${job.matchedTech.map(t => `<span class="px-2.5 py-1 rounded-md bg-emerald-950/40 text-emerald-300 border border-emerald-800/50 font-mono font-medium">${t}</span>`).join('')}
+            </div>
+          </div>
+
+          <!-- Generated Pitch Preview -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="text-slate-400 font-semibold">Tailored Auto-Pitch (With CV & Portfolio Attached):</label>
+              <span class="text-[10px] text-slate-500 font-mono">Channel: ${job.contactType === 'whatsapp' ? 'WhatsApp Direct' : 'Email Dispatch'}</span>
+            </div>
+            <div class="p-3 bg-dark-900 border border-emerald-500/30 rounded-lg text-slate-200 font-mono leading-relaxed relative">
+              <div class="absolute top-2 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px]">
+                <i data-lucide="paperclip" class="w-3 h-3"></i> Resume.pdf attached
+              </div>
+              ${job.pitchSent || "Pitch not yet drafted. You can generate and dispatch it manually below."}
+            </div>
+          </div>
+        </div>
+      `;
+
+      if (job.status === 'pending') {
+        footer.innerHTML = `
+          <button onclick="closeModal()" class="px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-white">Discard</button>
+          <button onclick="dispatchManualPitch('${job.id}')" class="px-4 py-2 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center gap-2">
+            <i data-lucide="send" class="w-3.5 h-3.5"></i>
+            Approve & Dispatch Pitch on WhatsApp
+          </button>
+        `;
+      } else if (job.status === 'auto-sent') {
+        footer.innerHTML = `
+          <span class="text-xs text-slate-400 mr-auto font-mono flex items-center gap-1.5">
+            <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i> Dispatched via ${job.contactType}
+          </span>
+          <button onclick="closeModal()" class="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-white">Done</button>
+        `;
+      } else {
+        footer.innerHTML = `
+          <button onclick="closeModal()" class="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-white">Close</button>
+        `;
+      }
+
+      modal.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeModal() {
+      document.getElementById('inspectorModal').classList.add('hidden');
+    }
+
+    // Manual dispatch from modal
+    function dispatchManualPitch(jobId) {
+      const job = mockFeed.find(j => j.id === jobId);
+      if (!job) return;
+
+      job.status = 'auto-sent';
+      job.pitchSent = `Hi ${job.poster}, I noticed your opening requiring ${job.matchedTech.join(', ')}. I'm Rizwan Ullah, a Full-Stack MERN developer. My portfolio is at https://rizwanullah.dev and my resume is attached. Let's connect!`;
+      
+      closeModal();
+      renderFeed();
+      updateStats();
+      showToast('Outreach Sent!', `Personalized pitch and CV sent to ${job.contact} via WhatsApp.`, 'emerald');
+    }
+
+    // Recruiter Replies Render
+    function renderRepliesList() {
+      const container = document.getElementById('replyListContainer');
+      container.innerHTML = recruiterReplies.map(rep => {
+        const isSelected = rep.id === selectedReplyId;
+        return `
+          <div onclick="selectReply('${rep.id}')" class="p-3 rounded-lg border transition cursor-pointer ${isSelected ? 'bg-slate-800/90 border-emerald-500/50' : 'bg-dark-900 border-slate-800/80 hover:bg-dark-850'}">
+            <div class="flex items-center justify-between mb-1">
+              <div class="flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] font-bold border border-emerald-500/40">
+                  ${rep.avatar}
+                </span>
+                <span class="text-xs font-bold text-white truncate max-w-[140px]">${rep.recruiter}</span>
+              </div>
+              <span class="text-[10px] text-slate-500 font-mono">${rep.time}</span>
+            </div>
+            <p class="text-xs text-slate-300 truncate">${rep.lastMessage}</p>
+            <div class="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-800/60 text-[10px] text-slate-400">
+              <span class="flex items-center gap-1"><i data-lucide="message-square" class="w-3 h-3 text-emerald-400"></i> ${rep.channel}</span>
+              ${!rep.read ? '<span class="text-rose-400 font-semibold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> Unread</span>' : '<span class="text-slate-500">Viewed</span>'}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const unreadCount = recruiterReplies.filter(r => !r.read).length;
+      document.getElementById('unreadReplyBadge').innerText = unreadCount;
+      document.getElementById('tabReplyCountBadge').innerText = unreadCount;
+      lucide.createIcons();
+    }
+
+    function selectReply(id) {
+      selectedReplyId = id;
+      const rep = recruiterReplies.find(r => r.id === id);
+      if (rep) {
+        rep.read = true;
+      }
+      renderRepliesList();
+      renderActiveConversation();
+      updateStats();
+    }
+
+    function renderActiveConversation() {
+      const container = document.getElementById('conversationDetail');
+      const rep = recruiterReplies.find(r => r.id === selectedReplyId);
+
+      if (!rep) {
+        container.innerHTML = `<div class="m-auto text-slate-500 text-xs">Select an inquiry to view chat thread</div>`;
+        return;
+      }
+
+      container.innerHTML = `
+        <!-- Header -->
+        <div class="p-3 border-b border-slate-800 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center border border-emerald-500/40 text-sm">
+              ${rep.avatar}
+            </div>
+            <div>
+              <h4 class="text-sm font-bold text-white flex items-center gap-2">
+                ${rep.recruiter}
+                <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${rep.channel} Verified</span>
+              </h4>
+              <p class="text-[11px] text-slate-400 font-mono">Matched Lead ID: ${rep.jobId}</p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button onclick="scheduleMeetingToast()" class="px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1.5">
+              <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+              Book Google Meet
+            </button>
+          </div>
+        </div>
+
+        <!-- Chat history -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-3" id="chatThreadContainer">
+          ${rep.messages.map(m => {
+            const isAgent = m.sender === 'agent';
+            return `
+              <div class="flex flex-col ${isAgent ? 'items-end' : 'items-start'}">
+                <span class="text-[10px] text-slate-500 mb-0.5 font-mono">${isAgent ? 'RizAgent (Auto-Pitch)' : rep.recruiter} &bull; ${m.time}</span>
+                <div class="max-w-[80%] rounded-xl p-3 text-xs leading-relaxed ${isAgent ? 'bg-emerald-600 text-white rounded-tr-none' : 'bg-slate-800 text-slate-200 rounded-tl-none border border-slate-700'}">
+                  ${escapeHtml(m.text)}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+
+        <!-- Reply Input -->
+        <div class="pt-3 border-t border-slate-800">
+          <form onsubmit="sendManualRecruiterReply(event)" class="flex items-center gap-2">
+            <input type="text" id="recruiterReplyInput" placeholder="Type your reply to ${rep.recruiter}..." class="flex-1 bg-dark-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-emerald-500">
+            <button type="submit" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-lg text-xs font-bold flex items-center gap-1.5">
+              <i data-lucide="send" class="w-3.5 h-3.5"></i>
+              Send
+            </button>
+          </form>
+        </div>
+      `;
+      lucide.createIcons();
+    }
+
+    function sendManualRecruiterReply(e) {
+      e.preventDefault();
+      const input = document.getElementById('recruiterReplyInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const rep = recruiterReplies.find(r => r.id === selectedReplyId);
+      if (!rep) return;
+
+      rep.messages.push({
+        sender: 'agent',
+        text: text,
+        time: 'Just now'
+      });
+      rep.lastMessage = `You: ${text}`;
+      input.value = '';
+
+      renderActiveConversation();
+      renderRepliesList();
+      showToast('Message Sent', `Dispatched response directly to ${rep.recruiter}.`, 'emerald');
+
+      // Scroll to bottom
+      const thread = document.getElementById('chatThreadContainer');
+      if (thread) thread.scrollTop = thread.scrollHeight;
+    }
+
+    // Schedule Meeting Prompt
+    function scheduleMeetingToast() {
+      showToast('Google Meet Prepared', 'Invitation link copied: https://meet.google.com/riz-mern-demo', 'emerald');
+    }
+
+    // Simulate Incoming Group Post
+    function simulateIncomingPost() {
+      if (!agentActive) {
+        showToast('Agent Paused', 'Activate the agent first to monitor incoming job posts.', 'amber');
+        return;
+      }
+
+      const samplePosts = [
+        {
+          poster: 'Tariq Tech Lead (ApexSoft)',
+          groupName: 'Pakistan Tech Internships & Jobs',
+          contact: '+92 345 9182341',
+          contactType: 'whatsapp',
+          rawText: 'Looking for a skilled MERN Stack Developer (React.js, Node.js, Express, MongoDB). Work includes building REST APIs and interactive dashboards. Send portfolio on WhatsApp: 03459182341.',
+          matchedTech: ['React.js', 'Node.js', 'Express', 'MongoDB'],
+          matchScore: 95
+        },
+        {
+          poster: 'Zainab HR (CodeCrafters PK)',
+          groupName: 'Dev Opportunities PK (@devjobs_pk)',
+          contact: 'careers@codecrafters.pk',
+          contactType: 'email',
+          rawText: 'Immediate opening for Full-Stack Developer with strong React Native + Node backend experience for ecommerce app. Send resume to careers@codecrafters.pk.',
+          matchedTech: ['React Native', 'Node.js', 'Full-Stack'],
+          matchScore: 92
+        }
+      ];
+
+      const sample = samplePosts[Math.floor(Math.random() * samplePosts.length)];
+      const newJobId = 'job-' + Date.now();
+      const willAutoSend = sample.matchScore >= minThreshold;
+
+      const newEntry = {
+        id: newJobId,
+        channel: sample.contactType === 'whatsapp' ? 'whatsapp' : 'telegram',
+        groupName: sample.groupName,
+        poster: sample.poster,
+        contact: sample.contact,
+        contactType: sample.contactType,
+        rawText: sample.rawText,
+        matchedTech: sample.matchedTech,
+        matchScore: sample.matchScore,
+        status: willAutoSend ? 'auto-sent' : 'pending',
+        time: 'Just now',
+        pitchSent: willAutoSend 
+          ? `Hi ${sample.poster}, I noticed your post regarding the Full-Stack role requiring ${sample.matchedTech.join(', ')}. I'm Rizwan Ullah, specializing in MERN and React Native. Check out my work at https://rizwanullah.dev. My CV is attached!`
+          : null
+      };
+
+      mockFeed.unshift(newEntry);
+      renderFeed();
+      updateStats();
+
+      // Trigger Alert
+      window.playChirp();
+      if (willAutoSend) {
+        showToast('Full-Stack Match Detected!', `Auto-dispatched pitch & CV to ${sample.poster} (${sample.contact})`, 'emerald');
+      } else {
+        showToast('New Job Lead Found', `Candidate post detected (${sample.matchScore}%). Review required.`, 'cyan');
+      }
+    }
+
+    // Simulate Recruiter Reply
+    function simulateRecruiterReply() {
+      window.playChirp();
+      const newReply = {
+        id: 'rep-' + Date.now(),
+        jobId: 'job-101',
+        recruiter: 'Sarah HR (FinTech Solutions)',
+        channel: 'WhatsApp',
+        time: 'Just now',
+        read: false,
+        avatar: 'FS',
+        lastMessage: 'Hi Rizwan, your MERN stack and React Native profile looks like a great fit! Can we connect for a quick 10-minute screening call today?',
+        messages: [
+          { sender: 'agent', text: 'Hi Sarah, I noticed your post regarding the Full-Stack role. Portfolio: https://rizwanullah.dev with CV attached.', time: '5 mins ago' },
+          { sender: 'recruiter', text: 'Hi Rizwan, your MERN stack and React Native profile looks like a great fit! Can we connect for a quick 10-minute screening call today?', time: 'Just now' }
+        ]
+      };
+
+      recruiterReplies.unshift(newReply);
+      selectedReplyId = newReply.id;
+      renderRepliesList();
+      renderActiveConversation();
+      updateStats();
+      showToast('Recruiter Replied!', 'Sarah HR (FinTech Solutions) replied to your pitch on WhatsApp.', 'rose');
+    }
+
+    // Update Stats Bar
+    function updateStats() {
+      const scanned = 184 + mockFeed.length - 4;
+      const matches = mockFeed.filter(m => m.matchScore >= 80).length;
+      const dispatched = mockFeed.filter(m => m.status === 'auto-sent').length;
+      const replies = recruiterReplies.length;
+
+      document.getElementById('statScanned').innerText = scanned;
+      document.getElementById('statMatches').innerText = matches;
+      document.getElementById('statDispatched').innerText = dispatched;
+      document.getElementById('statReplies').innerText = replies;
+    }
+
+    // Save Config Settings
+    function saveAgentConfig() {
+      minThreshold = parseInt(document.getElementById('thresholdSlider').value, 10);
+      showToast('Preferences Saved', `Threshold set to ${minThreshold}%. Auto-pitch template updated.`, 'emerald');
+    }
+
+    // Toast UI Component
+    function showToast(title, message, tone = 'emerald') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      
+      let borderCol = 'border-emerald-500/40 text-emerald-400';
+      if (tone === 'rose') borderCol = 'border-rose-500/40 text-rose-400';
+      if (tone === 'amber') borderCol = 'border-amber-500/40 text-amber-400';
+      if (tone === 'cyan') borderCol = 'border-cyan-500/40 text-cyan-400';
+
+      toast.className = `glass-panel pointer-events-auto p-3.5 rounded-xl border ${borderCol} shadow-2xl flex items-start gap-3 max-w-sm transition-all duration-300 transform translate-y-4 opacity-0`;
+      toast.innerHTML = `
+        <div class="mt-0.5">
+          <i data-lucide="bell-ring" class="w-4 h-4"></i>
+        </div>
+        <div class="flex-1">
+          <h5 class="text-xs font-bold text-white">${escapeHtml(title)}</h5>
+          <p class="text-[11px] text-slate-300 mt-0.5 leading-snug">${escapeHtml(message)}</p>
+        </div>
+      `;
+
+      container.appendChild(toast);
+      lucide.createIcons();
+
+      setTimeout(() => {
+        toast.classList.remove('translate-y-4', 'opacity-0');
+      }, 50);
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-x-6');
+        setTimeout(() => toast.remove(), 300);
+      }, 4500);
+    }
+
+    // Utility: sanitize
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+  </script>
+</body>
+</html>

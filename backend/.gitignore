@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.env
+.env*
+*.env
+*.env.local
+coverage/
+uploads/cvs/*
+!uploads/cvs/.gitkeep
+screenshots/*
+!screenshots/.gitkeep
+*.log
+.DS_Store
