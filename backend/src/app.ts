@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import path from 'path';
 
 import { env } from './config/env';
+import { logger } from './utils/logger';
 import { apiLimiter } from './middleware/rateLimiter';
 import { errorHandler } from './middleware/errorHandler';
 
@@ -22,7 +23,24 @@ export function createApp(): Application {
   const app = express();
 
   // Enable trust proxy for Vercel / reverse proxy deployment
-  app.set('trust proxy', 1);
+  app.set('trust proxy', true);
+
+  // Auto-connect database in serverless execution environments (e.g. Vercel)
+  let dbPromise: Promise<void> | null = null;
+  app.use(async (_req, _res, next) => {
+    try {
+      const { connectDB } = await import('./config/database');
+      if (!dbPromise) {
+        dbPromise = connectDB().catch((err: any) => {
+          logger.warn(`Serverless DB auto-connect note: ${err.message}`);
+        });
+      }
+      await dbPromise;
+    } catch {
+      // Allow request to proceed to error or health handlers
+    }
+    next();
+  });
 
   // Security Middleware
   app.use(
@@ -126,3 +144,7 @@ export function createApp(): Application {
 
   return app;
 }
+
+// Default export for Vercel Serverless Function loader
+const defaultApp = createApp();
+export default defaultApp;

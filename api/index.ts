@@ -1,3 +1,3 @@
-import handler from '../backend/api/index';
+import app from '../backend/src/app';
 
-export default handler;
+export default app;
