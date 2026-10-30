@@ -252,17 +252,30 @@ async function scanLinkedInPublicJobs() {
     browser = await puppeteer.launch({
       headless: 'new',
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || (puppeteer.executablePath ? puppeteer.executablePath() : undefined),
+      protocolTimeout: 120000,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-gpu',
+        '--single-process',
+        '--no-zygote',
         '--disable-blink-features=AutomationControlled'
       ],
       defaultViewport: { width: 1280, height: 800 }
     });
 
     const page = await browser.newPage();
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      const type = req.resourceType();
+      if (['image', 'stylesheet', 'font', 'media'].includes(type)) {
+        req.abort();
+      } else {
+        req.continue();
+      }
+    });
+
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
 
     for (const query of SEARCH_QUERIES) {

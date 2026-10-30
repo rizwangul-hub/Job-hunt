@@ -318,6 +318,18 @@ server.listen(webPort, '0.0.0.0', () => {
   console.log(`🌐 Web interface active on 0.0.0.0:${webPort} for instant browser QR code scanning`);
 });
 
+// Bind fallback cloud ports (8080 & 10000) so Railway proxy never fails regardless of networking config
+const fallbackPorts = [8080, 10000].filter(p => p !== webPort);
+for (const fbPort of fallbackPorts) {
+  try {
+    const fbServer = http.createServer((req, res) => server.emit('request', req, res));
+    fbServer.listen(fbPort, '0.0.0.0', () => {
+      console.log(`🌐 Dual-port proxy listener active on 0.0.0.0:${fbPort}`);
+    });
+    fbServer.on('error', () => {});
+  } catch (e) {}
+}
+
 // Avoid processing identical messages repeatedly
 const processedMessageHashes = new Set();
 
