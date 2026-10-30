@@ -7,7 +7,7 @@ import { SystemSettings } from '../models/SystemSettings';
 import { aiService } from '../services/ai/aiService';
 import { ScoringEngine } from '../services/matching/scoringEngine';
 import { browserWorker } from '../services/browser-automation/browserWorker';
-import { whatsAppService } from '../services/messaging/whatsAppService';
+import { whatsAppService, WhatsAppService } from '../services/messaging/whatsAppService';
 import { emailService } from '../services/messaging/emailService';
 import { validateSafeUrl } from '../services/browser-automation/urlSafety';
 import { logger } from '../utils/logger';
@@ -91,6 +91,19 @@ export async function submitManualJob(req: any, res: Response): Promise<void> {
   let status: 'pending' | 'auto-sent' | 'discarded' = 'pending';
   let appStatus: any = 'Discovered';
   let pitchSent: string | null = null;
+  let clickToChatUrl: string | undefined = undefined;
+
+  // Generate Click-to-Chat URL in advance if contact is a phone/WhatsApp contact
+  if (extracted.contactType === 'whatsapp' && extracted.contact && extracted.contact !== 'N/A') {
+    const defaultPitch = user.preferences.pitchTemplate
+      .replace(/{{contact_name}}/g, extracted.poster || 'Hiring Team')
+      .replace(/{{role_title}}/g, extracted.title)
+      .replace(/{{matched_tech}}/g, extracted.matchedTech.join(', '))
+      .replace(/{{portfolio_url}}/g, user.portfolioUrl)
+      .replace(/{{linkedin_url}}/g, user.linkedinUrl)
+      .replace(/{{github_url}}/g, user.githubUrl);
+    clickToChatUrl = WhatsAppService.generateClickToChatUrl(extracted.contact, defaultPitch);
+  }
 
   const mode = user.preferences.automationMode; // 'REVIEW_ONLY' | 'APPROVAL_REQUIRED' | 'RESTRICTED_AUTO_APPLY'
 
@@ -139,6 +152,7 @@ export async function submitManualJob(req: any, res: Response): Promise<void> {
     isRemote: extracted.isRemote,
     salaryStipend: extracted.salaryStipend,
     applicationUrl: extracted.applicationUrl,
+    clickToChatUrl,
     matchScore: evalResult.score,
     matchExplanation: evalResult.explanation,
     duplicateFingerprint: fingerprint,
@@ -249,10 +263,17 @@ export async function prepareApplication(req: any, res: Response): Promise<void>
     browserInspection = await browserWorker.inspectPage(job.applicationUrl);
   }
 
+  // Pre-generate WhatsApp 1-Click Outreach URL
+  let clickToChatUrl = job.clickToChatUrl;
+  if (job.contactType === 'whatsapp' && job.contact && job.contact !== 'N/A') {
+    clickToChatUrl = WhatsAppService.generateClickToChatUrl(job.contact, pitchMessage);
+  }
+
   res.json({
     success: true,
     coverLetter,
     pitchMessage,
+    clickToChatUrl,
     browserInspection
   });
 }
@@ -277,6 +298,9 @@ export async function approveJob(req: any, res: Response): Promise<void> {
       messageText: customMessage
     });
     actionResult = waResult;
+    if (waResult.clickToChatUrl) {
+      job.clickToChatUrl = waResult.clickToChatUrl;
+    }
   } else if (job.contactType === 'email' && job.contact.includes('@')) {
     const emResult = await emailService.sendApplicationEmail({
       to: job.contact,

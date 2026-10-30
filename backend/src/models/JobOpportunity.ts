@@ -17,6 +17,7 @@ export interface IJobOpportunity extends Document {
   salaryStipend?: string;
   deadline?: string;
   applicationUrl?: string;
+  clickToChatUrl?: string;
   matchScore: number;
   matchExplanation: string;
   duplicateFingerprint: string;
@@ -70,6 +71,7 @@ const JobOpportunitySchema = new Schema<IJobOpportunity>(
     salaryStipend: { type: String },
     deadline: { type: String },
     applicationUrl: { type: String },
+    clickToChatUrl: { type: String },
     matchScore: { type: Number, default: 0, min: 0, max: 100 },
     matchExplanation: { type: String, default: '' },
     duplicateFingerprint: { type: String, required: true, index: true },

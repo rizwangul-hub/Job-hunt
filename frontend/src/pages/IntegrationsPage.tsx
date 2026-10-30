@@ -168,10 +168,14 @@ export const IntegrationsPage: React.FC = () => {
               </p>
 
               {item.provider === 'whatsapp' && (
-                <div className="p-2 rounded bg-dark-850 border border-slate-800 text-[11px] text-slate-400">
-                  <strong className="text-slate-300">Platform Note:</strong> WhatsApp Cloud API operates on verified
-                  phone templates. Group chats that cannot be accessed via official API use automated Click-to-Chat pre-filled
-                  prompts.
+                <div className="p-2.5 rounded bg-dark-850 border border-emerald-500/20 text-[11px] text-slate-300 space-y-1">
+                  <div className="flex items-center gap-1.5 text-emerald-400 font-bold">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Direct 1-Click WhatsApp Outreach Active</span>
+                  </div>
+                  <p className="text-slate-400">
+                    No Meta Business account or verification required! When job leads with a recruiter phone number are detected or pasted, RizAgent generates instant 1-Click <strong className="text-emerald-400 font-mono">wa.me</strong> links with your tailored candidate pitch pre-filled for your phone or WhatsApp Web.
+                  </p>
                 </div>
               )}
             </div>

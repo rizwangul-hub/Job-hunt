@@ -64,6 +64,16 @@ describe('Meta WhatsApp Cloud API Webhook', () => {
       const res = await request(app).get('/api/webhooks/whatsapp');
       expect(res.status).toBe(400);
     });
+
+    it('should return 400 Bad Request when the challenge is missing', async () => {
+      const res = await request(app)
+        .get('/api/webhooks/whatsapp')
+        .query({
+          'hub.mode': 'subscribe',
+          'hub.verify_token': testVerifyToken
+        });
+      expect(res.status).toBe(400);
+    });
   });
 
   describe('POST /api/webhooks/whatsapp (Event Receiver)', () => {

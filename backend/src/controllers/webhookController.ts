@@ -80,7 +80,7 @@ export function verifyWhatsAppWebhook(req: Request, res: Response): void {
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
 
-  if (mode && token) {
+  if (mode && token && challenge !== undefined && challenge !== '') {
     const incomingToken = String(token).trim().replace(/^["']|["']$/g, '');
     const configuredToken = String(env.WHATSAPP_VERIFY_TOKEN || '').trim().replace(/^["']|["']$/g, '');
     const defaultToken = 'rizagent_whatsapp_webhook_token_2026';

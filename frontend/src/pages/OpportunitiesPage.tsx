@@ -10,7 +10,8 @@ import {
   XCircle,
   Loader2,
   Clock,
-  Sparkles
+  Sparkles,
+  MessageSquare
 } from 'lucide-react';
 import { Modal } from '../components/Modal';
 import { ManualJobModal } from '../components/ManualJobModal';
@@ -162,9 +163,25 @@ export const OpportunitiesPage: React.FC = () => {
 
                   {job.status === 'pending' ? (
                     <div className="flex items-center gap-1.5">
+                      {job.clickToChatUrl && (
+                        <a
+                          href={job.clickToChatUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleApprove(job._id || job.id!, e);
+                          }}
+                          title="1-Click Send via WhatsApp on phone or web"
+                          className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition border border-emerald-500/30 shadow"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5 fill-white" />
+                          <span>WhatsApp</span>
+                        </a>
+                      )}
                       <button
                         onClick={(e) => handleApprove(job._id || job.id!, e)}
-                        className="px-2.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold flex items-center gap-1 transition"
+                        className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center gap-1 transition"
                       >
                         <CheckCircle className="w-3.5 h-3.5" />
                         Approve
@@ -177,9 +194,23 @@ export const OpportunitiesPage: React.FC = () => {
                       </button>
                     </div>
                   ) : (
-                    <span className="px-2.5 py-1 rounded-full text-xs font-mono font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                      {job.status}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {job.clickToChatUrl && (
+                        <a
+                          href={job.clickToChatUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 transition"
+                          title="Open WhatsApp Chat"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                        </a>
+                      )}
+                      <span className="px-2.5 py-1 rounded-full text-xs font-mono font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                        {job.status}
+                      </span>
+                    </div>
                   )}
                 </div>
               </div>

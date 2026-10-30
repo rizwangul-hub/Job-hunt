@@ -9,7 +9,8 @@ import {
   ExternalLink,
   ShieldAlert,
   Loader2,
-  Calendar
+  Calendar,
+  MessageSquare
 } from 'lucide-react';
 import api from '../services/api';
 import { useMode } from '../context/ModeContext';
@@ -39,6 +40,18 @@ export const Modal: React.FC<ModalProps> = ({ job, isOpen, onClose, onJobUpdated
   if (!isOpen || !job) return null;
 
   const isHighMatch = job.matchScore >= 80;
+
+  // Compute live 1-click WhatsApp outreach link
+  const getWhatsAppDirectUrl = () => {
+    if (job.clickToChatUrl) return job.clickToChatUrl;
+    if (job.contact && job.contact !== 'N/A') {
+      const clean = job.contact.replace(/[^\d]/g, '');
+      const formatted = clean.startsWith('03') && clean.length === 11 ? '92' + clean.substring(1) : clean;
+      return `https://wa.me/${formatted}?text=${encodeURIComponent(pitchText)}`;
+    }
+    return null;
+  };
+  const whatsAppDirectUrl = getWhatsAppDirectUrl();
 
   const handleApproveAndDispatch = async () => {
     setIsSubmitting(true);
@@ -191,41 +204,65 @@ export const Modal: React.FC<ModalProps> = ({ job, isOpen, onClose, onJobUpdated
         </div>
 
         {/* Modal Footer */}
-        <div className="p-4 border-t border-slate-800 bg-dark-900 flex items-center justify-end gap-3">
-          {job.status === 'pending' || job.status === 'discarded' ? (
-            <>
-              <button
-                onClick={handleReject}
-                className="px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-white transition"
-              >
-                Dismiss Opportunity
-              </button>
-              <button
-                onClick={handleApproveAndDispatch}
-                disabled={isSubmitting}
-                className="px-4 py-2 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center gap-2 transition disabled:opacity-50"
-              >
-                {isSubmitting ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Send className="w-3.5 h-3.5" />
-                )}
-                Approve & Dispatch Outreach
-              </button>
-            </>
-          ) : (
-            <>
-              <span className="text-xs text-slate-400 mr-auto font-mono flex items-center gap-1.5">
-                <CheckCircle className="w-4 h-4 text-emerald-400" /> Dispatched via {job.contactType}
-              </span>
-              <button
-                onClick={onClose}
-                className="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-white transition"
-              >
-                Done
-              </button>
-            </>
+        <div className="p-4 border-t border-slate-800 bg-dark-900 flex flex-wrap items-center justify-between gap-3">
+          {/* Quick 1-Click WhatsApp Direct Button (Always available when WhatsApp contact exists) */}
+          {whatsAppDirectUrl && (
+            <a
+              href={whatsAppDirectUrl}
+              target="_blank"
+              rel="noreferrer"
+              onClick={async () => {
+                // Auto-mark as approved in RizAgent backend when user clicks to launch WhatsApp
+                try {
+                  await api.post(`/jobs/${job._id || job.id}/approve`, { message: pitchText });
+                  if (onJobUpdated) onJobUpdated();
+                } catch (e) {
+                  // non-blocking
+                }
+              }}
+              className="px-3.5 py-2 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-2 shadow-lg shadow-emerald-950/50 transition border border-emerald-400/30"
+            >
+              <MessageSquare className="w-4 h-4 fill-white" />
+              1-Click Send via WhatsApp (Phone / Web)
+            </a>
           )}
+
+          <div className="flex items-center gap-2 ml-auto">
+            {job.status === 'pending' || job.status === 'discarded' ? (
+              <>
+                <button
+                  onClick={handleReject}
+                  className="px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-white transition"
+                >
+                  Dismiss Opportunity
+                </button>
+                <button
+                  onClick={handleApproveAndDispatch}
+                  disabled={isSubmitting}
+                  className="px-4 py-2 rounded-lg text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-2 transition disabled:opacity-50"
+                >
+                  {isSubmitting ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Send className="w-3.5 h-3.5" />
+                  )}
+                  Record Outreach
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="text-xs text-slate-400 font-mono flex items-center gap-1.5">
+                  <CheckCircle className="w-4 h-4 text-emerald-400" /> Dispatched via {job.contactType}
+                </span>
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-white transition"
+                >
+                  Done
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>

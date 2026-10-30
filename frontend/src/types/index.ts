@@ -93,6 +93,7 @@ export interface JobOpportunity {
   salaryStipend?: string;
   deadline?: string;
   applicationUrl?: string;
+  clickToChatUrl?: string;
   matchScore: number;
   matchExplanation: string;
   status: 'pending' | 'auto-sent' | 'discarded' | 'approved' | 'rejected';
