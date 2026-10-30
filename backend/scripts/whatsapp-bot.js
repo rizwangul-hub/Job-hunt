@@ -151,52 +151,82 @@ client.on('message_create', async (msg) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         rawText: text,
+        text: text,
+        content: text,
         channel: 'whatsapp',
         groupName: groupName
       })
     });
 
     const data = await res.json();
-    if (data.success && data.job) {
-      console.log(`🎯 Evaluated: "${data.job.title}" at "${data.job.company}"`);
-      console.log(`📊 Profile Match Score: ${data.job.matchScore}%`);
-      console.log(`⚡ Action: ${data.action}`);
+    if (!data.success) {
+      console.log(`ℹ️ [Notice] ${data.message || 'Job ignored or duplicate'}`);
+      console.log(`------------------------------------------------------\n`);
+      return;
+    }
 
-      // If High Match (>= 80%) and Recruiter phone found, send direct WhatsApp outreach
-      if (data.job.matchScore >= 80 && data.job.contact && (data.job.contactType === 'whatsapp' || data.job.contact.match(/^(\+92|03|\d{10,14})/))) {
-        let cleanPhone = data.job.contact.replace(/[^\d]/g, '');
-        if (cleanPhone.startsWith('03') && cleanPhone.length === 11) {
-          cleanPhone = '92' + cleanPhone.substring(1);
-        }
+    const job = data.job || {};
+    const score = data.matchScore || job.matchScore || 0;
+    const title = job.title || 'Software Developer';
+    const company = job.company || 'Tech Team';
 
+    console.log(`🎯 Evaluated: "${title}" at "${company}"`);
+    console.log(`📊 Profile Match Score: ${score}%`);
+
+    // 1. AUTO-EMAIL DISPATCH CONFIRMATION
+    if (data.directDispatched) {
+      console.log(`📧 [EMAIL SENT] CV (Resume.pdf) & tailored cover letter emailed to: ${data.recipientEmail}`);
+    }
+
+    // 2. AUTO-WHATSAPP OUTREACH DISPATCH
+    // Check if phone number exists in response or text
+    const phoneMatch = text.match(/(?:\+92|03\d{2})[-.\s]?\d{7}|\b\d{10,12}\b/);
+    const targetPhone = data.recipientPhone || job.contact || (phoneMatch ? phoneMatch[0] : null);
+
+    if (score >= 80 && targetPhone) {
+      let cleanPhone = targetPhone.replace(/[^\d]/g, '');
+      if (cleanPhone.startsWith('03') && cleanPhone.length === 11) {
+        cleanPhone = '92' + cleanPhone.substring(1);
+      }
+
+      if (cleanPhone.length >= 10) {
         const recipientId = `${cleanPhone}@c.us`;
         const candidateName = process.env.CANDIDATE_NAME || 'Rizwan Ullah';
         const portfolio = process.env.CANDIDATE_PORTFOLIO || 'https://rizwanullah.dev';
         const github = process.env.CANDIDATE_GITHUB || 'https://github.com/rizwangul-hub';
+        const linkedin = process.env.CANDIDATE_LINKEDIN || 'https://linkedin.com/in/rizwanullah';
 
-        const pitch = `Salam! I saw your post regarding the ${data.job.title} role.
+        const pitch = `Salam! I saw your post regarding the ${title} position.
 
-I am a Full-Stack MERN & React Native Developer with hands-on production experience building responsive web and mobile applications using MongoDB, Express.js, React.js, Node.js, and Tailwind CSS.
+I am a Full-Stack MERN & React Native Developer with hands-on production experience designing and building responsive web and mobile solutions using MongoDB, Express.js, React.js, Node.js, and Tailwind CSS.
 
-- Portfolio: ${portfolio}
-- GitHub: ${github}
+Links & Demos:
+- 🌐 Portfolio: ${portfolio}
+- 💻 GitHub: ${github}
+- 💼 LinkedIn: ${linkedin}
 
-I would welcome the opportunity to discuss how I can contribute to your team. Please find my CV attached below.`;
+I have attached my resume below for your review. Looking forward to discussing how I can add immediate value to your team!
+
+Best regards,
+${candidateName} (RizMern)`;
 
         try {
+          // Send pitch message
           await client.sendMessage(recipientId, pitch);
-          console.log(`💬 [WHATSAPP OUTREACH] Direct pitch sent to recruiter at +${cleanPhone}`);
+          console.log(`💬 [WHATSAPP OUTREACH] Tailored pitch with Portfolio & Links sent to recruiter (+${cleanPhone})!`);
 
+          // Send CV attachment
           if (cvPath && fs.existsSync(cvPath)) {
             const media = MessageMedia.fromFilePath(cvPath);
-            await client.sendMessage(recipientId, media, { caption: `${candidateName} - CV.pdf` });
-            console.log(`📎 [WHATSAPP CV] Resume.pdf successfully delivered to recruiter!`);
+            await client.sendMessage(recipientId, media, { caption: `${candidateName} - Full Stack Developer CV.pdf` });
+            console.log(`📎 [WHATSAPP CV] Resume PDF successfully delivered to recruiter!`);
           }
         } catch (sendErr) {
           console.log(`ℹ️ Recruiter WhatsApp direct notice: ${sendErr.message}`);
         }
       }
     }
+
     console.log(`------------------------------------------------------\n`);
   } catch (err) {
     console.error('Error processing group message:', err.message);

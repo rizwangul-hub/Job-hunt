@@ -54,8 +54,8 @@ export function verifyMetaSignature(req: AuthenticatedRawRequest): boolean {
 }
 
 export async function handleInboundJobWebhook(req: Request, res: Response): Promise<void> {
-  const { text, message, content, channel = 'whatsapp', groupName = 'Connected Job Group' } = req.body;
-  const rawText = text || message || content;
+  const { text, message, content, rawText: bodyRawText, channel = 'whatsapp', groupName = 'Connected Job Group' } = req.body;
+  const rawText = bodyRawText || text || message || content;
 
   if (!rawText || typeof rawText !== 'string' || rawText.trim().length < 15) {
     res.status(400).json({ success: false, message: 'Message text required (min 15 chars).' });
@@ -124,12 +124,23 @@ export async function handleInboundJobWebhook(req: Request, res: Response): Prom
     let appStatus: any = 'Review Required';
     let directDispatched = false;
 
+    // Detect email and phone contacts anywhere in the post
+    const emailMatch = rawText.match(/[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}/);
+    const targetEmail = (extracted.contactType === 'email' && extracted.contact.includes('@')) 
+      ? extracted.contact 
+      : (emailMatch ? emailMatch[0] : null);
+
+    const phoneMatch = rawText.match(/(?:\+92|03\d{2})[-.\s]?\d{7}|\b\d{10,12}\b/);
+    const targetPhone = (extracted.contactType === 'whatsapp' && extracted.contact)
+      ? extracted.contact
+      : (phoneMatch ? phoneMatch[0] : null);
+
     // DIRECT DISPATCH: If match >= threshold and email contact is present, auto-send email with CV & portfolio
     const defaultCV = user.cvs.find(c => c.isDefault) || user.cvs[0];
-    if (evalResult.score >= user.preferences.minMatchThreshold && extracted.contactType === 'email' && extracted.contact.includes('@')) {
+    if (evalResult.score >= user.preferences.minMatchThreshold && targetEmail) {
       try {
         const emailRes = await emailService.sendApplicationEmail({
-          to: extracted.contact,
+          to: targetEmail,
           subject: `Application for ${extracted.title} — ${user.fullName}`,
           body: pitchMessage,
           cvFilePath: defaultCV?.filepath
@@ -138,7 +149,7 @@ export async function handleInboundJobWebhook(req: Request, res: Response): Prom
           status = 'auto-sent';
           appStatus = 'Submitted';
           directDispatched = true;
-          logger.info(`Instant automated email dispatched to ${extracted.contact}`);
+          logger.info(`Instant automated email dispatched to ${targetEmail}`);
         }
       } catch (err: any) {
         logger.error(`Webhook auto-email failed: ${err.message}`);
@@ -184,8 +195,18 @@ export async function handleInboundJobWebhook(req: Request, res: Response): Prom
       success: true,
       message: directDispatched ? 'Job analyzed and application email dispatched directly.' : 'Job analyzed and added to pipeline.',
       jobId: job._id,
+      job: {
+        id: job._id,
+        title: job.title,
+        company: job.company,
+        contact: job.contact,
+        contactType: job.contactType,
+        matchScore: job.matchScore
+      },
       matchScore: job.matchScore,
       directDispatched,
+      recipientEmail: targetEmail,
+      recipientPhone: targetPhone,
       clickToChatUrl
     });
   } catch (error: any) {
