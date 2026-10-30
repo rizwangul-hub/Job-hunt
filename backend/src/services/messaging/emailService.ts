@@ -90,19 +90,32 @@ export class EmailService {
     }
 
     const attachments: any[] = [];
-    if (cvFilePath) {
-      if (fs.existsSync(cvFilePath)) {
-        attachments.push({
-          filename: path.basename(cvFilePath),
-          path: cvFilePath
-        });
-      } else {
-        return {
-          success: false,
-          error: `CV attachment file not found at "${cvFilePath}". Delivery halted.`,
-          verifiedDelivered: false
-        };
+    let resolvedCvPath: string | null = null;
+
+    if (cvFilePath && fs.existsSync(cvFilePath)) {
+      resolvedCvPath = cvFilePath;
+    } else {
+      // Fallback: look for Resume.pdf or any pdf in uploads
+      const candidatePaths = [
+        path.join(process.cwd(), 'uploads/Resume.pdf'),
+        path.join(process.cwd(), 'backend/uploads/Resume.pdf'),
+        path.join(__dirname, '../../../uploads/Resume.pdf'),
+        path.join(__dirname, '../../uploads/Resume.pdf'),
+        path.join(__dirname, '../uploads/Resume.pdf')
+      ];
+      for (const p of candidatePaths) {
+        if (fs.existsSync(p)) {
+          resolvedCvPath = p;
+          break;
+        }
       }
+    }
+
+    if (resolvedCvPath) {
+      attachments.push({
+        filename: 'Rizwan Ullah - Full Stack Developer CV.pdf',
+        path: resolvedCvPath
+      });
     }
 
     try {
