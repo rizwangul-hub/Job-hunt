@@ -128,6 +128,12 @@ client.on('auth_failure', (msg) => {
   console.error('❌ WhatsApp authentication failed:', msg);
 });
 
+client.on('disconnected', (reason) => {
+  isOnline = false;
+  botStatus = `Disconnected: ${reason}`;
+  console.log(`ℹ️ WhatsApp session disconnected (Reason: ${reason}). Another instance (e.g. Railway) may have taken over.`);
+});
+
 client.on('ready', () => {
   isOnline = true;
   currentQrDataUrl = null;
@@ -909,4 +915,12 @@ process.on('SIGTERM', async () => {
     await client.destroy();
   } catch (e) {}
   process.exit(0);
+});
+
+process.on('uncaughtException', (err) => {
+  if (err && err.message && (err.message.includes('EBUSY') || err.message.includes('Protocol error') || err.message.includes('Execution context was destroyed'))) {
+    console.log(`ℹ️ [Notice] Handled file lock / browser notice: ${err.message}`);
+    return;
+  }
+  console.error('Unhandled Exception:', err);
 });
