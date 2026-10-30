@@ -290,6 +290,135 @@ ${candidateName}`;
       }
     }
 
+    // 3. AUTO-APPLY TO CAREER LINKS & APPLICATION PAGES
+    const urlMatches = text.match(/https?:\/\/[^\s"'<>]+/gi);
+    if (urlMatches && urlMatches.length > 0) {
+      const externalUrls = urlMatches.filter(u => {
+        const l = u.toLowerCase();
+        return !l.includes('full-stack-portfolio') && 
+               !l.includes('rizwanmerndev') && 
+               !l.includes('rizwangul-hub') &&
+               !l.includes('wa.me') &&
+               !l.includes('whatsapp.com');
+      });
+
+      if (externalUrls.length > 0) {
+        const targetApplyUrl = externalUrls[0].replace(/[),.]+$/, '');
+        console.log(`🌐 [APPLICATION LINK FOUND]: ${targetApplyUrl}`);
+        console.log(`🤖 [AUTO-APPLY] Opening career page in background browser to apply...`);
+
+        (async () => {
+          let b = null;
+          try {
+            b = await puppeteer.launch({
+              headless: true,
+              args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu']
+            });
+            const p = await b.newPage();
+            await p.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+            await p.goto(targetApplyUrl, { waitUntil: 'domcontentloaded', timeout: 25000 });
+
+            const pageData = await p.evaluate(() => {
+              const text = document.body ? document.body.innerText : '';
+              const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/g;
+              const emails = text.match(emailRegex) || [];
+              const mailtoLinks = Array.from(document.querySelectorAll('a[href^="mailto:"]')).map(a => a.href.replace('mailto:', '').split('?')[0]);
+              const allEmails = Array.from(new Set([...emails, ...mailtoLinks])).filter(e => !e.includes('example.com') && !e.includes('domain.com') && !e.includes('.png'));
+
+              const hasForm = document.querySelector('form') !== null;
+              const hasEmailInput = document.querySelector('input[type="email"], input[name*="email" i], input[id*="email" i]') !== null;
+              const hasFileInput = document.querySelector('input[type="file"]') !== null;
+
+              return {
+                title: document.title,
+                emails: allEmails,
+                hasForm,
+                hasEmailInput,
+                hasFileInput
+              };
+            });
+
+            console.log(`📄 Page Title: "${pageData.title}"`);
+
+            // If a recruiter email was discovered on the application page:
+            if (pageData.emails.length > 0 && mailTransporter) {
+              const discoveredEmail = pageData.emails[0];
+              console.log(`🎯 [RECRUITER EMAIL DISCOVERED ON PAGE]: ${discoveredEmail}`);
+              try {
+                await mailTransporter.sendMail({
+                  from: process.env.SMTP_FROM || process.env.SMTP_USER,
+                  to: discoveredEmail,
+                  subject: `Application for ${title} — ${candidateName}`,
+                  text: pitch,
+                  attachments: cvPath && fs.existsSync(cvPath) 
+                    ? [{ filename: `${candidateName} - Full Stack Developer CV.pdf`, path: cvPath }] 
+                    : []
+                });
+                console.log(`📧 [AUTO-APPLY EMAIL SENT] Application with CV PDF emailed to discovered recruiter: ${discoveredEmail}`);
+              } catch (mErr) {
+                console.log(`⚠️ Email notice: ${mErr.message}`);
+              }
+            }
+
+            // If an online application form is detected:
+            if (pageData.hasForm && pageData.hasEmailInput) {
+              console.log(`📝 [APPLICATION FORM DETECTED] Auto-filling profile and attaching CV...`);
+              try {
+                await p.evaluate(({ name, email, port, git, link }) => {
+                  function setVal(sel, val) {
+                    const el = document.querySelector(sel);
+                    if (el) {
+                      el.value = val;
+                      el.dispatchEvent(new Event('input', { bubbles: true }));
+                      el.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                  }
+                  setVal('input[name*="name" i], input[id*="name" i], input[placeholder*="name" i]', name);
+                  setVal('input[type="email"], input[name*="email" i], input[id*="email" i]', email);
+                  setVal('input[type="tel"], input[name*="phone" i], input[id*="phone" i]', '03179500901');
+                  setVal('input[name*="portfolio" i], input[id*="portfolio" i]', port);
+                  setVal('input[name*="github" i], input[id*="github" i]', git);
+                  setVal('input[name*="linkedin" i], input[id*="linkedin" i]', link);
+                }, {
+                  name: candidateName,
+                  email: process.env.SMTP_USER || 'rizwangul535@gmail.com',
+                  port: portfolio,
+                  git: github,
+                  link: linkedin
+                });
+
+                if (cvPath && fs.existsSync(cvPath) && pageData.hasFileInput) {
+                  const fileInput = await p.$('input[type="file"]');
+                  if (fileInput) {
+                    await fileInput.uploadFile(cvPath);
+                    console.log(`📎 [FORM CV UPLOADED] ${path.basename(cvPath)} attached!`);
+                  }
+                }
+
+                const submitBtn = await p.$('button[type="submit"], input[type="submit"], button.submit, form button');
+                if (submitBtn) {
+                  await Promise.all([
+                    p.waitForNavigation({ timeout: 10000 }).catch(() => {}),
+                    submitBtn.click()
+                  ]);
+                  console.log(`🚀 [FORM SUBMITTED] Application successfully submitted on ${targetApplyUrl}!`);
+                } else {
+                  console.log(`✅ [FORM FILLED] All fields filled! Review at ${targetApplyUrl}`);
+                }
+              } catch (fErr) {
+                console.log(`ℹ️ Form fill notice: ${fErr.message}`);
+              }
+            }
+
+            await b.close();
+          } catch (autoErr) {
+            if (b) await b.close();
+            console.log(`ℹ️ Auto-apply notice: ${autoErr.message}`);
+          }
+        })();
+      }
+    }
+
     console.log(`------------------------------------------------------\n`);
   } catch (err) {
     console.error('Error processing group message:', err.message);
