@@ -107,13 +107,33 @@ export async function handleInboundJobWebhook(req: Request, res: Response): Prom
     });
 
     // 4. Build Outreach Pitch
-    const pitchMessage = user.preferences.pitchTemplate
+    let pitchMessage = user.preferences.pitchTemplate
       .replace(/{{contact_name}}/g, extracted.poster || 'Hiring Team')
       .replace(/{{role_title}}/g, extracted.title)
       .replace(/{{matched_tech}}/g, extracted.matchedTech.join(', '))
       .replace(/{{portfolio_url}}/g, user.portfolioUrl)
       .replace(/{{linkedin_url}}/g, user.linkedinUrl)
       .replace(/{{github_url}}/g, user.githubUrl);
+
+    const lowerCombined = (extracted.title + ' ' + rawText).toLowerCase();
+    if (
+      lowerCombined.includes('data entry') ||
+      lowerCombined.includes('computer operator') ||
+      lowerCombined.includes('office') ||
+      lowerCombined.includes('clerk') ||
+      lowerCombined.includes('typing')
+    ) {
+      pitchMessage = `Salam! I saw your opening regarding the ${extracted.title} role.
+
+I am writing to express my strong interest in this opportunity. I have solid computer proficiency, fast and accurate typing skills, practical experience managing data with MS Office & Excel, and a dedicated work ethic.
+
+I have attached my CV below for your review. I am available immediately and look forward to discussing how I can assist your team!
+
+Best regards,
+${user.fullName}
+Email: ${user.email}
+Phone: ${user.phone}`;
+    }
 
     let clickToChatUrl: string | undefined = undefined;
     if (extracted.contactType === 'whatsapp' && extracted.contact && extracted.contact !== 'N/A') {
@@ -137,7 +157,7 @@ export async function handleInboundJobWebhook(req: Request, res: Response): Prom
 
     // DIRECT DISPATCH: If match >= threshold and email contact is present, auto-send email with CV & portfolio
     const defaultCV = user.cvs.find(c => c.isDefault) || user.cvs[0];
-    const threshold = user.preferences?.minMatchThreshold || 75;
+    const threshold = user.preferences?.minMatchThreshold || 30;
     if (evalResult.score >= threshold && targetEmail) {
       try {
         const emailRes = await emailService.sendApplicationEmail({

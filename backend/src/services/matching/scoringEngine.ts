@@ -54,66 +54,107 @@ export class ScoringEngine {
       return parts.some(p => p.length > 2 && lowerTitle.includes(p));
     });
 
-    if (lowerTitle.includes('mern') || lowerTitle.includes('full stack') || lowerTitle.includes('full-stack') || lowerTitle.includes('fullstack')) {
+    if (
+      lowerTitle.includes('mern') ||
+      lowerTitle.includes('full stack') ||
+      lowerTitle.includes('full-stack') ||
+      lowerTitle.includes('fullstack') ||
+      lowerTitle.includes('web develop') ||
+      lowerTitle.includes('frontend') ||
+      lowerTitle.includes('backend') ||
+      lowerTitle.includes('react') ||
+      lowerTitle.includes('node')
+    ) {
       score += 35;
-      reasons.push('Title strongly matches target MERN / Full-Stack focus (+35).');
-    } else if (lowerTitle.includes('react native') || lowerTitle.includes('mobile')) {
-      score += 32;
-      reasons.push('Title matches React Native / Mobile focus (+32).');
-    } else if (lowerTitle.includes('react') || lowerTitle.includes('frontend')) {
-      score += 30;
-      reasons.push('Title matches React / Frontend focus (+30).');
-    } else if (lowerTitle.includes('node') || lowerTitle.includes('backend')) {
-      score += 30;
-      reasons.push('Title matches Node.js / Backend focus (+30).');
+      reasons.push('Title matches Web Development / Full-Stack / MERN stack (+35).');
+    } else if (
+      lowerTitle.includes('python') ||
+      lowerTitle.includes('c++') ||
+      lowerTitle.includes('cpp') ||
+      lowerTitle.includes('software') ||
+      lowerTitle.includes('developer') ||
+      lowerTitle.includes('engineer') ||
+      lowerTitle.includes('programmer')
+    ) {
+      score += 35;
+      reasons.push('Title matches Software / Python / C++ engineering (+35).');
+    } else if (
+      lowerTitle.includes('ai') ||
+      lowerTitle.includes('machine learning') ||
+      lowerTitle.includes('data science')
+    ) {
+      score += 35;
+      reasons.push('Title matches AI / Machine Learning focus (+35).');
+    } else if (
+      lowerTitle.includes('data entry') ||
+      lowerTitle.includes('computer operator') ||
+      lowerTitle.includes('office') ||
+      lowerTitle.includes('clerk') ||
+      lowerTitle.includes('typing') ||
+      lowerTitle.includes('assistant') ||
+      lowerTitle.includes('graduate') ||
+      lowerTitle.includes('education') ||
+      lowerTitle.includes('bachelor')
+    ) {
+      score += 35;
+      reasons.push('Title matches Data Entry / Computer / Office / Graduate opportunity (+35).');
     } else if (matchesTargetRole) {
-      score += 25;
-      reasons.push('Title matches one of candidate target roles (+25).');
+      score += 30;
+      reasons.push('Title matches target career role (+30).');
     } else {
-      score += 5;
-      reasons.push('General engineering title (+5).');
+      score += 20;
+      reasons.push('General job opportunity (+20).');
     }
 
     // 2. Core Tech Stack Match (Max 40 points)
     const coreMatches = matchedTech.filter(tech =>
-      ['React.js', 'Node.js', 'Express.js', 'MongoDB', 'MERN Stack', 'React Native', 'TypeScript', 'Tailwind CSS', 'Full-Stack', 'Next.js', 'JavaScript', 'REST APIs', 'Python'].includes(tech)
+      [
+        'React.js',
+        'Node.js',
+        'Express.js',
+        'MongoDB',
+        'MERN Stack',
+        'React Native',
+        'TypeScript',
+        'Tailwind CSS',
+        'Full-Stack',
+        'Web Development',
+        'Next.js',
+        'JavaScript',
+        'REST APIs',
+        'Python',
+        'C++',
+        'AI & Machine Learning',
+        'Data Entry',
+        'MS Excel',
+        'MS Office',
+        'Computer Typing'
+      ].includes(tech)
     );
 
     let techPoints = 0;
-    if (coreMatches.length >= 3) {
+    if (coreMatches.length >= 2) {
       techPoints = 40;
-    } else if (coreMatches.length === 2) {
-      techPoints = 35;
     } else if (coreMatches.length === 1) {
-      techPoints = 20;
+      techPoints = 35;
+    } else {
+      techPoints = 25;
     }
     score += techPoints;
-    if (techPoints > 0) {
-      reasons.push(`Matched ${coreMatches.length} core technologies: ${coreMatches.join(', ')} (+${techPoints}).`);
-    }
-
-    // 3. Seniority & Experience Alignment (Max 15 points)
-    const isSenior = seniority.toLowerCase().includes('senior') || seniority.toLowerCase().includes('lead');
-    const isJuniorOrIntern = seniority.toLowerCase().includes('junior') || seniority.toLowerCase().includes('intern') || seniority.toLowerCase().includes('entry');
-
-    if (isJuniorOrIntern) {
-      score += 15;
-      reasons.push('Seniority perfectly matches Junior / Entry-level / Internship preference (+15).');
-    } else if (isSenior) {
-      score -= 25; // Significant penalty for senior roles outside qualifications
-      reasons.push('Senior / Lead seniority requirements flag outside qualifications (-25).');
+    if (coreMatches.length > 0) {
+      reasons.push(`Matched technologies/skills: ${coreMatches.join(', ')} (+${techPoints}).`);
     } else {
-      score += 10;
-      reasons.push('Mid / General experience level (+10).');
+      reasons.push(`General skill alignment (+${techPoints}).`);
     }
+
+    // 3. Seniority & Experience Alignment (Max 15 points) - Accepts all experience levels (1 to 5+ years)
+    score += 15;
+    reasons.push('Experience level accepted (+15).');
 
     // 4. Remote / Location Alignment (Max 10 points)
     if (isRemote) {
       score += 10;
       reasons.push('Remote work option aligned with preference (+10).');
-    } else if (criteria.remoteOnly) {
-      score -= 10;
-      reasons.push('On-site position when remote-only preference is set (-10).');
     } else {
       score += 10;
       reasons.push('Acceptable location (+10).');
@@ -122,8 +163,8 @@ export class ScoringEngine {
     // Clamp score between 0 and 100
     score = Math.max(0, Math.min(100, score));
 
-    const isEligibleForAutoApply = score >= criteria.minMatchThreshold && !isSenior;
-    const requiresReview = score < criteria.minMatchThreshold || isSenior;
+    const isEligibleForAutoApply = score >= criteria.minMatchThreshold;
+    const requiresReview = score < criteria.minMatchThreshold;
 
     const explanation = reasons.join(' ');
 

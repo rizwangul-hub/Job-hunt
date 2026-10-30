@@ -36,9 +36,18 @@ const TECH_DICTIONARY = [
   { key: 'full stack', name: 'Full-Stack' },
   { key: 'frontend', name: 'Frontend' },
   { key: 'backend', name: 'Backend' },
+  { key: 'web develop', name: 'Web Development' },
   { key: 'html', name: 'HTML5/CSS3' },
   { key: 'sql', name: 'SQL/PostgreSQL' },
   { key: 'python', name: 'Python' },
+  { key: 'c++', name: 'C++' },
+  { key: 'cpp', name: 'C++' },
+  { key: 'ai', name: 'AI & Machine Learning' },
+  { key: 'machine learning', name: 'AI & Machine Learning' },
+  { key: 'data entry', name: 'Data Entry' },
+  { key: 'excel', name: 'MS Excel' },
+  { key: 'office', name: 'MS Office' },
+  { key: 'typing', name: 'Computer Typing' },
   { key: 'java', name: 'Java' },
   { key: 'docker', name: 'Docker' },
   { key: 'aws', name: 'AWS' },
@@ -159,23 +168,37 @@ Full-Stack Developer`;
     }
 
     // 4. Seniority
-    let seniority = 'Entry / Mid-Level';
+    let seniority = 'General / All Experience';
     if (lower.includes('intern') || lower.includes('internship') || lower.includes('trainee')) {
       seniority = 'Internship';
     } else if (lower.includes('junior') || lower.includes('fresh') || lower.includes('entry level') || lower.includes('0-1')) {
       seniority = 'Junior / Entry-Level';
-    } else if (lower.includes('senior') || lower.includes('lead') || lower.includes('5+') || lower.includes('7+')) {
-      seniority = 'Senior / Lead';
+    } else if (lower.includes('1-2') || lower.includes('1 to 2') || lower.includes('2-3') || lower.includes('3 to 4') || lower.includes('3-5') || lower.includes('5+')) {
+      seniority = 'Mid / Experienced';
+    } else if (lower.includes('senior') || lower.includes('lead')) {
+      seniority = 'Senior / Experienced';
     }
 
     // 5. Title Extraction
-    let title = 'Software Developer';
-    const hiringTitleMatch = rawText.match(/(?:hiring|role|position|opening|job)\s*:\s*([^\n\r*]+)/i);
+    let title = 'General Opportunity';
+    const hiringTitleMatch = rawText.match(/(?:hiring|role|position|opening|job|title|looking for)\s*:\s*([^\n\r*]+)/i);
     if (hiringTitleMatch && hiringTitleMatch[1]) {
       const detected = hiringTitleMatch[1].replace(/[*_#]/g, '').trim();
-      if (detected.length >= 3 && detected.length <= 40) {
+      if (detected.length >= 3 && detected.length <= 50) {
         title = detected;
       }
+    } else if (lower.includes('data entry')) {
+      title = 'Data Entry Operator';
+    } else if (lower.includes('computer operator')) {
+      title = 'Computer Operator';
+    } else if (lower.includes('office assistant') || lower.includes('office staff') || lower.includes('clerk')) {
+      title = 'Office Assistant';
+    } else if (lower.includes('ai ') || lower.includes('machine learning') || lower.includes('artificial intelligence')) {
+      title = 'AI & Machine Learning Developer';
+    } else if (lower.includes('python')) {
+      title = 'Python Developer';
+    } else if (lower.includes('c++') || lower.includes('cpp')) {
+      title = 'C++ Developer';
     } else if (lower.includes('mern') || lower.includes('mern stack')) {
       title = 'Full-Stack MERN Developer';
     } else if (lower.includes('full stack') || lower.includes('fullstack') || lower.includes('full-stack')) {
@@ -186,8 +209,12 @@ Full-Stack Developer`;
       title = 'React Frontend Developer';
     } else if (lower.includes('node') || lower.includes('backend')) {
       title = 'Node.js Backend Developer';
+    } else if (lower.includes('web develop')) {
+      title = 'Web Developer';
     } else if (lower.includes('intern') || lower.includes('trainee')) {
       title = 'Software Development Intern';
+    } else if (lower.includes('developer') || lower.includes('engineer') || lower.includes('programmer')) {
+      title = 'Software Developer';
     }
 
     // 6. Company

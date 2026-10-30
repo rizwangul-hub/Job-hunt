@@ -235,16 +235,34 @@ client.on('message_create', async (msg) => {
       lower.includes('mern') || 
       lower.includes('react') || 
       lower.includes('node') || 
+      lower.includes('web develop') ||
       lower.includes('opportunity') ||
       lower.includes('dev') ||
       lower.includes('engineer') ||
+      lower.includes('programmer') ||
+      lower.includes('software') ||
+      lower.includes('python') ||
+      lower.includes('c++') ||
+      lower.includes('cpp') ||
+      lower.includes('ai') ||
+      lower.includes('machine learning') ||
+      lower.includes('data entry') ||
+      lower.includes('computer operator') ||
+      lower.includes('office') ||
+      lower.includes('assistant') ||
+      lower.includes('clerk') ||
+      lower.includes('typing') ||
+      lower.includes('bachelor') ||
+      lower.includes('graduate') ||
+      lower.includes('education') ||
       lower.includes('cv') ||
       lower.includes('resume') ||
       lower.includes('frontend') ||
       lower.includes('backend') ||
       lower.includes('fullstack') ||
       lower.includes('full stack') ||
-      lower.includes('walk in');
+      lower.includes('walk in') ||
+      lower.includes('apply');
 
     if (!isHiring) return;
 
@@ -285,8 +303,8 @@ client.on('message_create', async (msg) => {
 
     const job = data.job || {};
     const score = data.matchScore || job.matchScore || 0;
-    const title = job.title || 'Full-Stack Developer';
-    const company = job.company || 'Tech Team';
+    const title = job.title || 'Professional Role';
+    const company = job.company || 'Team';
 
     console.log(`🎯 Evaluated: "${title}" at "${company}"`);
     console.log(`📊 Profile Match Score: ${score}%`);
@@ -296,9 +314,52 @@ client.on('message_create', async (msg) => {
     const github = process.env.CANDIDATE_GITHUB || 'https://github.com/rizwangul-hub';
     const linkedin = process.env.CANDIDATE_LINKEDIN || 'https://www.linkedin.com/in/rizwanmerndev';
 
-    const pitch = `Salam! I saw your post regarding the ${title} position.
+    // Tailor pitch based on category (Web Development 1-5+ yrs, Python/C++/AI, Data Entry / General)
+    let pitch = '';
+    const lowerRole = (title + ' ' + text).toLowerCase();
 
-I am a Full-Stack MERN & React Native Developer with hands-on production experience designing and building responsive web and mobile solutions using MongoDB, Express.js, React.js, Node.js, and Tailwind CSS.
+    if (
+      lowerRole.includes('data entry') ||
+      lowerRole.includes('computer operator') ||
+      lowerRole.includes('office') ||
+      lowerRole.includes('clerk') ||
+      lowerRole.includes('typing') ||
+      lowerRole.includes('assistant')
+    ) {
+      pitch = `Salam! I saw your post regarding the ${title} position.
+
+I am writing to express my strong interest in this opportunity. I have comprehensive computer proficiency, fast and accurate typing skills, practical experience managing data with MS Office & Excel, and a dedicated, detail-oriented work ethic.
+
+I have attached my CV below for your review. I am available immediately and look forward to discussing how I can assist your team!
+
+Best regards,
+${candidateName}
+Email: rizwangul535@gmail.com`;
+    } else if (
+      lowerRole.includes('python') ||
+      lowerRole.includes('c++') ||
+      lowerRole.includes('cpp') ||
+      lowerRole.includes('ai') ||
+      lowerRole.includes('machine learning')
+    ) {
+      pitch = `Salam! I saw your post regarding the ${title} position.
+
+I am a Software & Web Developer with strong algorithmic problem-solving abilities and practical experience in software development, REST APIs, and modern engineering practices.
+
+Links & Portfolio:
+- 🌐 Portfolio: ${portfolio}
+- 💻 GitHub: ${github}
+- 💼 LinkedIn: ${linkedin}
+
+I have attached my resume below for your review. Looking forward to discussing how I can contribute immediately!
+
+Best regards,
+${candidateName}`;
+    } else {
+      // Web Development (1 to 5+ years, Full-Stack, MERN, React, Node, Frontend, Backend)
+      pitch = `Salam! I saw your post regarding the ${title} position.
+
+I am a Full-Stack MERN & Web Developer with hands-on production experience designing, building, and deploying responsive web and software solutions using MongoDB, Express.js, React.js, Node.js, and modern REST APIs.
 
 Links & Demos:
 - 🌐 Portfolio: ${portfolio}
@@ -309,13 +370,13 @@ I have attached my resume below for your review. Looking forward to discussing h
 
 Best regards,
 ${candidateName}`;
+    }
 
     // 1. AUTO-EMAIL DISPATCH (Local SMTP fallback guarantees delivery with local CV)
     const emailMatch = text.match(/[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}/);
     const targetEmail = data.recipientEmail || (emailMatch ? emailMatch[0] : null);
-    const minThreshold = data.minMatchThreshold || 75;
 
-    if (score >= minThreshold && targetEmail) {
+    if (targetEmail) {
       if (mailTransporter) {
         try {
           await mailTransporter.sendMail({
@@ -342,7 +403,7 @@ ${candidateName}`;
     const phoneMatch = text.match(/(?:\+92|03\d{2})[-.\s]?\d{7}|\b\d{10,12}\b/);
     const targetPhone = data.recipientPhone || job.contact || (phoneMatch ? phoneMatch[0] : null);
 
-    if (score >= minThreshold && targetPhone) {
+    if (targetPhone) {
       let cleanPhone = targetPhone.replace(/[^\d]/g, '');
       if (cleanPhone.startsWith('03') && cleanPhone.length === 11) {
         cleanPhone = '92' + cleanPhone.substring(1);
