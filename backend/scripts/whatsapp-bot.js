@@ -1,6 +1,7 @@
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const puppeteer = require('puppeteer');
 const qrcode = require('qrcode-terminal');
+const nodemailer = require('nodemailer');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
@@ -8,6 +9,20 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') });
 console.log('======================================================');
 console.log('🤖 INITIALIZING RIZAGENT WHATSAPP AUTO-HUNTER BOT');
 console.log('======================================================');
+
+// Setup Direct SMTP Transporter for instant email dispatch
+let mailTransporter = null;
+if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+  mailTransporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || '465'),
+    secure: true,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS
+    }
+  });
+}
 
 // Find CV file
 function findCV() {
@@ -134,9 +149,13 @@ client.on('message_create', async (msg) => {
 
     if (!isHiring) return;
 
-    // Simple hash to avoid spamming the same forward
+    // Simple hash to avoid spamming the same forward (allows re-testing)
     const hash = text.substring(0, 50).toLowerCase();
-    if (processedMessageHashes.has(hash)) return;
+    const isTest = lower.includes('test');
+    if (processedMessageHashes.has(hash) && !isTest) {
+      console.log(`ℹ️ [Skipped Duplicate] This job was already processed recently.`);
+      return;
+    }
     processedMessageHashes.add(hash);
     if (processedMessageHashes.size > 2000) processedMessageHashes.clear();
 
@@ -167,36 +186,18 @@ client.on('message_create', async (msg) => {
 
     const job = data.job || {};
     const score = data.matchScore || job.matchScore || 0;
-    const title = job.title || 'Software Developer';
+    const title = job.title || 'Full-Stack Developer';
     const company = job.company || 'Tech Team';
 
     console.log(`🎯 Evaluated: "${title}" at "${company}"`);
     console.log(`📊 Profile Match Score: ${score}%`);
 
-    // 1. AUTO-EMAIL DISPATCH CONFIRMATION
-    if (data.directDispatched) {
-      console.log(`📧 [EMAIL SENT] CV (Resume.pdf) & tailored cover letter emailed to: ${data.recipientEmail}`);
-    }
+    const candidateName = process.env.CANDIDATE_NAME || 'Rizwan Ullah';
+    const portfolio = process.env.CANDIDATE_PORTFOLIO || 'https://rizwanullah.dev';
+    const github = process.env.CANDIDATE_GITHUB || 'https://github.com/rizwangul-hub';
+    const linkedin = process.env.CANDIDATE_LINKEDIN || 'https://linkedin.com/in/rizwanullah';
 
-    // 2. AUTO-WHATSAPP OUTREACH DISPATCH
-    // Check if phone number exists in response or text
-    const phoneMatch = text.match(/(?:\+92|03\d{2})[-.\s]?\d{7}|\b\d{10,12}\b/);
-    const targetPhone = data.recipientPhone || job.contact || (phoneMatch ? phoneMatch[0] : null);
-
-    if (score >= 80 && targetPhone) {
-      let cleanPhone = targetPhone.replace(/[^\d]/g, '');
-      if (cleanPhone.startsWith('03') && cleanPhone.length === 11) {
-        cleanPhone = '92' + cleanPhone.substring(1);
-      }
-
-      if (cleanPhone.length >= 10) {
-        const recipientId = `${cleanPhone}@c.us`;
-        const candidateName = process.env.CANDIDATE_NAME || 'Rizwan Ullah';
-        const portfolio = process.env.CANDIDATE_PORTFOLIO || 'https://rizwanullah.dev';
-        const github = process.env.CANDIDATE_GITHUB || 'https://github.com/rizwangul-hub';
-        const linkedin = process.env.CANDIDATE_LINKEDIN || 'https://linkedin.com/in/rizwanullah';
-
-        const pitch = `Salam! I saw your post regarding the ${title} position.
+    const pitch = `Salam! I saw your post regarding the ${title} position.
 
 I am a Full-Stack MERN & React Native Developer with hands-on production experience designing and building responsive web and mobile solutions using MongoDB, Express.js, React.js, Node.js, and Tailwind CSS.
 
@@ -210,10 +211,53 @@ I have attached my resume below for your review. Looking forward to discussing h
 Best regards,
 ${candidateName} (RizMern)`;
 
+    // 1. AUTO-EMAIL DISPATCH (Local SMTP fallback guarantees delivery with local CV)
+    const emailMatch = text.match(/[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}/);
+    const targetEmail = data.recipientEmail || (emailMatch ? emailMatch[0] : null);
+
+    if (score >= 80 && targetEmail && mailTransporter) {
+      try {
+        await mailTransporter.sendMail({
+          from: process.env.SMTP_FROM || process.env.SMTP_USER,
+          to: targetEmail,
+          subject: `Application for ${title} — ${candidateName}`,
+          text: pitch,
+          attachments: cvPath && fs.existsSync(cvPath) 
+            ? [{ filename: `${candidateName} - Full Stack Developer CV.pdf`, path: cvPath }] 
+            : []
+        });
+        console.log(`📧 [EMAIL SENT] Application & CV PDF emailed successfully to recruiter: ${targetEmail}`);
+      } catch (mailErr) {
+        console.log(`⚠️ Email dispatch notice: ${mailErr.message}`);
+      }
+    } else if (data.directDispatched) {
+      console.log(`📧 [EMAIL SENT] CV (Resume.pdf) & cover letter emailed to: ${targetEmail}`);
+    }
+
+    // 2. AUTO-WHATSAPP OUTREACH DISPATCH
+    const phoneMatch = text.match(/(?:\+92|03\d{2})[-.\s]?\d{7}|\b\d{10,12}\b/);
+    const targetPhone = data.recipientPhone || job.contact || (phoneMatch ? phoneMatch[0] : null);
+
+    if (score >= 80 && targetPhone) {
+      let cleanPhone = targetPhone.replace(/[^\d]/g, '');
+      if (cleanPhone.startsWith('03') && cleanPhone.length === 11) {
+        cleanPhone = '92' + cleanPhone.substring(1);
+      }
+
+      if (cleanPhone.length >= 10) {
         try {
-          // Send pitch message
+          // Resolve number in WhatsApp store to prevent memoize id error
+          let recipientId = `${cleanPhone}@c.us`;
+          try {
+            const contactDetails = await client.getNumberId(cleanPhone);
+            if (contactDetails && contactDetails._serialized) {
+              recipientId = contactDetails._serialized;
+            }
+          } catch (numErr) {}
+
+          // Send pitch text
           await client.sendMessage(recipientId, pitch);
-          console.log(`💬 [WHATSAPP OUTREACH] Tailored pitch with Portfolio & Links sent to recruiter (+${cleanPhone})!`);
+          console.log(`💬 [WHATSAPP OUTREACH] Pitch with Portfolio, GitHub & LinkedIn sent to recruiter (+${cleanPhone})!`);
 
           // Send CV attachment
           if (cvPath && fs.existsSync(cvPath)) {
