@@ -87,11 +87,26 @@ client.on('ready', () => {
 // Avoid processing identical messages repeatedly
 const processedMessageHashes = new Set();
 
-client.on('message', async (msg) => {
+client.on('message_create', async (msg) => {
   try {
-    if (msg.fromMe) return;
     const text = msg.body || '';
-    if (text.length < 35) return;
+    if (!text || text.trim().length < 12) return;
+
+    // Avoid reacting to bot's own outreach pitches
+    const isBotPitch = 
+      text.includes('Salam! I saw your post') || 
+      text.includes('rizwangul-hub') || 
+      text.includes('rizwanullah.dev');
+    if (isBotPitch) return;
+
+    let groupName = 'Direct Chat';
+    try {
+      const chat = await msg.getChat();
+      groupName = chat.name || (chat.isGroup ? 'WhatsApp Group' : 'Direct Chat');
+    } catch (e) {}
+
+    // Print live chat activity so you can see messages being processed
+    console.log(`[💬 Seen in "${groupName}"]: "${text.substring(0, 60).replace(/\n/g, ' ')}..."`);
 
     // Check if post looks like a job or hiring post
     const lower = text.toLowerCase();
@@ -107,6 +122,14 @@ client.on('message', async (msg) => {
       lower.includes('react') || 
       lower.includes('node') || 
       lower.includes('opportunity') ||
+      lower.includes('dev') ||
+      lower.includes('engineer') ||
+      lower.includes('cv') ||
+      lower.includes('resume') ||
+      lower.includes('frontend') ||
+      lower.includes('backend') ||
+      lower.includes('fullstack') ||
+      lower.includes('full stack') ||
       lower.includes('walk in');
 
     if (!isHiring) return;
@@ -117,15 +140,9 @@ client.on('message', async (msg) => {
     processedMessageHashes.add(hash);
     if (processedMessageHashes.size > 2000) processedMessageHashes.clear();
 
-    let groupName = 'WhatsApp Group';
-    try {
-      const chat = await msg.getChat();
-      groupName = chat.name || (chat.isGroup ? 'WhatsApp Group' : 'Direct Chat');
-    } catch (e) {}
-
-    console.log(`\n------------------------------------------------------`);
-    console.log(`[📥 JOB POST DETECTED] From "${groupName}"`);
-    console.log(`Snippet: "${text.substring(0, 120).replace(/\n/g, ' ')}..."`);
+    console.log(`\n======================================================`);
+    console.log(`[🎯 JOB POST IDENTIFIED] In "${groupName}"`);
+    console.log(`Snippet: "${text.substring(0, 140).replace(/\n/g, ' ')}..."`);
 
     // Ingest into RizAgent
     const apiUrl = process.env.API_WEBHOOK_URL || 'https://backend-rose-two-72.vercel.app/api/webhooks/jobs';
