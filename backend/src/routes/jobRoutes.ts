@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   getJobs,
   submitManualJob,
+  batchIngestGroupJobs,
   analyseJobOnly,
   getJobById,
   prepareApplication,
@@ -17,6 +18,7 @@ router.use(requireAuth);
 
 router.get('/', getJobs);
 router.post('/manual', submitManualJob);
+router.post('/batch', batchIngestGroupJobs);
 router.post('/analyse', analyseJobOnly);
 router.post('/preview-url', previewUrlSafety);
 router.get('/:id', getJobById);

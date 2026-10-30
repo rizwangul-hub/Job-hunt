@@ -129,6 +129,30 @@ export async function submitManualJob(req: any, res: Response): Promise<void> {
 
       status = 'auto-sent';
       appStatus = 'Submitted';
+
+      // 5. DIRECT DISPATCH: If recruiter contact is email, automatically send email with CV & Portfolio
+      const defaultCV = user.cvs.find(c => c.isDefault) || user.cvs[0];
+      if (extracted.contactType === 'email' && extracted.contact.includes('@')) {
+        try {
+          const emailRes = await emailService.sendApplicationEmail({
+            to: extracted.contact,
+            subject: `Application for ${extracted.title} — ${user.fullName}`,
+            body: pitchSent,
+            cvFilePath: defaultCV?.filepath
+          });
+          if (emailRes.success) {
+            logger.info(`Automated application email dispatched directly to ${extracted.contact}`);
+            await ActivityLog.create({
+              type: 'application',
+              title: `Direct Email Dispatched: ${extracted.title}`,
+              description: `CV & tailored pitch sent to ${extracted.contact}`,
+              level: 'success'
+            });
+          }
+        } catch (e: any) {
+          logger.error('Auto email dispatch failed:', e.message);
+        }
+      }
     }
   } else {
     // Default Mode B or Mode A: requires approval
@@ -363,6 +387,164 @@ export async function approveJob(req: any, res: Response): Promise<void> {
     message: 'Opportunity approved and dispatched.',
     job,
     actionResult
+  });
+}
+
+export async function batchIngestGroupJobs(req: any, res: Response): Promise<void> {
+  const { messages, channel = 'whatsapp', groupName = 'WhatsApp Job Group' } = req.body;
+
+  if (!messages || (!Array.isArray(messages) && typeof messages !== 'string')) {
+    res.status(400).json({ success: false, message: 'Array of messages or raw group dump string required.' });
+    return;
+  }
+
+  const user = await UserProfile.findById(req.user.id);
+  if (!user) {
+    res.status(404).json({ success: false, message: 'User profile not found.' });
+    return;
+  }
+
+  // Parse raw text messages split by dividers or line breaks
+  let postList: string[] = [];
+  if (Array.isArray(messages)) {
+    postList = messages.map(m => String(m).trim()).filter(m => m.length > 20);
+  } else {
+    // Split by common message dividers: multiple newlines, date stamps, or dashes
+    postList = messages
+      .split(/\n\s*[-—=]{3,}\s*\n|\n{2,}/g)
+      .map(m => m.trim())
+      .filter(m => m.length > 20);
+  }
+
+  const results: any[] = [];
+  const defaultCV = user.cvs.find(c => c.isDefault) || user.cvs[0];
+
+  for (const rawText of postList.slice(0, 30)) {
+    try {
+      // 1. Extract Details via AI
+      const extracted = await aiService.extractJobDetails(rawText);
+
+      // Skip invalid / noise messages
+      if (!extracted.title || extracted.title === 'Undisclosed Role' || extracted.title.length < 3) {
+        continue;
+      }
+
+      // 2. Duplicate Detection Fingerprint
+      const fingerprint = ScoringEngine.calculateFingerprint({
+        company: extracted.company,
+        title: extracted.title,
+        rawText,
+        contact: extracted.contact
+      });
+
+      const existing = await JobOpportunity.findOne({ duplicateFingerprint: fingerprint });
+      if (existing) {
+        continue; // Skip already ingested
+      }
+
+      // 3. Match Evaluation
+      const evalResult = ScoringEngine.evaluateJob({
+        title: extracted.title,
+        seniority: extracted.seniority,
+        matchedTech: extracted.matchedTech,
+        isRemote: extracted.isRemote,
+        location: extracted.location,
+        criteria: {
+          targetRoles: user.targetRoles,
+          skills: user.skills,
+          remoteOnly: user.preferences.remoteOnly,
+          internshipsJuniorOnly: user.preferences.internshipsJuniorOnly,
+          minMatchThreshold: user.preferences.minMatchThreshold
+        }
+      });
+
+      // 4. Generate Pre-filled Pitch
+      const pitchMessage = user.preferences.pitchTemplate
+        .replace(/{{contact_name}}/g, extracted.poster || 'Hiring Team')
+        .replace(/{{role_title}}/g, extracted.title)
+        .replace(/{{matched_tech}}/g, extracted.matchedTech.join(', '))
+        .replace(/{{portfolio_url}}/g, user.portfolioUrl)
+        .replace(/{{linkedin_url}}/g, user.linkedinUrl)
+        .replace(/{{github_url}}/g, user.githubUrl);
+
+      let clickToChatUrl: string | undefined = undefined;
+      if (extracted.contactType === 'whatsapp' && extracted.contact && extracted.contact !== 'N/A') {
+        clickToChatUrl = WhatsAppService.generateClickToChatUrl(extracted.contact, pitchMessage);
+      }
+
+      let status: 'pending' | 'auto-sent' | 'discarded' = 'pending';
+      let appStatus: any = 'Review Required';
+      let directActionTaken = 'Queued for Review';
+
+      // Auto-dispatch if candidate is high match and automation mode permits or direct email is found
+      const isAutoSend = evalResult.score >= user.preferences.minMatchThreshold && evalResult.isEligibleForAutoApply;
+      if (isAutoSend && extracted.contactType === 'email' && extracted.contact.includes('@')) {
+        try {
+          const emailRes = await emailService.sendApplicationEmail({
+            to: extracted.contact,
+            subject: `Application for ${extracted.title} — ${user.fullName}`,
+            body: pitchMessage,
+            cvFilePath: defaultCV?.filepath
+          });
+          if (emailRes.success) {
+            status = 'auto-sent';
+            appStatus = 'Submitted';
+            directActionTaken = `Direct Email Dispatched with CV to ${extracted.contact}`;
+          }
+        } catch (e: any) {
+          logger.warn(`Auto-email failed for ${extracted.contact}: ${e.message}`);
+        }
+      } else if (isAutoSend && extracted.contactType === 'whatsapp' && clickToChatUrl) {
+        status = 'pending';
+        appStatus = 'Ready to Submit';
+        directActionTaken = '1-Click WhatsApp Link Ready';
+      }
+
+      const job = await JobOpportunity.create({
+        title: extracted.title,
+        company: extracted.company,
+        channel,
+        groupName,
+        poster: extracted.poster,
+        contact: extracted.contact,
+        contactType: extracted.contactType,
+        rawText,
+        extractedSkills: extracted.extractedSkills,
+        matchedTech: extracted.matchedTech,
+        seniority: extracted.seniority,
+        location: extracted.location,
+        isRemote: extracted.isRemote,
+        salaryStipend: extracted.salaryStipend,
+        applicationUrl: extracted.applicationUrl,
+        clickToChatUrl,
+        matchScore: evalResult.score,
+        matchExplanation: evalResult.explanation,
+        duplicateFingerprint: fingerprint,
+        status,
+        applicationStatus: appStatus,
+        pitchSent: isAutoSend ? pitchMessage : null,
+        discoveredAt: new Date(),
+        isDemo: false
+      });
+
+      results.push({
+        title: job.title,
+        company: job.company,
+        matchScore: job.matchScore,
+        contact: job.contact,
+        contactType: job.contactType,
+        action: directActionTaken,
+        clickToChatUrl
+      });
+    } catch (err: any) {
+      logger.error('Error processing batch job lead:', err.message);
+    }
+  }
+
+  res.json({
+    success: true,
+    processedCount: results.length,
+    jobs: results
   });
 }
 

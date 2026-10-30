@@ -2,10 +2,14 @@ import { Router } from 'express';
 import {
   verifyWhatsAppWebhook,
   handleWhatsAppWebhook,
-  getWhatsAppWebhookStatus
+  getWhatsAppWebhookStatus,
+  handleInboundJobWebhook
 } from '../controllers/webhookController';
 
 const router = Router();
+
+// Inbound Job Lead Webhook (Connect any group bot, Telegram forwarder, or WhatsApp forwarder directly)
+router.post('/jobs', handleInboundJobWebhook);
 
 // Meta WhatsApp Cloud API Webhook Endpoints
 // Note: These endpoints are unauthenticated by candidate JWT sessions because Meta's servers call them directly.

@@ -7,6 +7,11 @@ import { JobOpportunity } from '../models/JobOpportunity';
 import { ActivityLog } from '../models/ActivityLog';
 import { WhatsAppService } from '../services/messaging/whatsAppService';
 
+import { UserProfile } from '../models/UserProfile';
+import { ScoringEngine } from '../services/matching/scoringEngine';
+import { aiService } from '../services/ai/aiService';
+import { emailService } from '../services/messaging/emailService';
+
 export interface AuthenticatedRawRequest extends Request {
   rawBody?: Buffer;
 }
@@ -45,6 +50,147 @@ export function verifyMetaSignature(req: AuthenticatedRawRequest): boolean {
   } catch (err: any) {
     logger.error('Error during webhook signature verification:', err.message);
     return false;
+  }
+}
+
+export async function handleInboundJobWebhook(req: Request, res: Response): Promise<void> {
+  const { text, message, content, channel = 'whatsapp', groupName = 'Connected Job Group' } = req.body;
+  const rawText = text || message || content;
+
+  if (!rawText || typeof rawText !== 'string' || rawText.trim().length < 15) {
+    res.status(400).json({ success: false, message: 'Message text required (min 15 chars).' });
+    return;
+  }
+
+  try {
+    const user = await UserProfile.findOne();
+    if (!user) {
+      res.status(500).json({ success: false, message: 'Administrator profile missing.' });
+      return;
+    }
+
+    // 1. AI Extraction
+    const extracted = await aiService.extractJobDetails(rawText);
+    if (!extracted.title || extracted.title === 'Undisclosed Role') {
+      res.status(200).json({ success: true, message: 'Ignored non-job message.' });
+      return;
+    }
+
+    // 2. Duplicate Detection
+    const fingerprint = ScoringEngine.calculateFingerprint({
+      company: extracted.company,
+      title: extracted.title,
+      rawText,
+      contact: extracted.contact
+    });
+
+    const existing = await JobOpportunity.findOne({ duplicateFingerprint: fingerprint });
+    if (existing) {
+      res.status(200).json({ success: true, message: 'Duplicate job post ignored.', jobId: existing._id });
+      return;
+    }
+
+    // 3. Match Evaluation
+    const evalResult = ScoringEngine.evaluateJob({
+      title: extracted.title,
+      seniority: extracted.seniority,
+      matchedTech: extracted.matchedTech,
+      isRemote: extracted.isRemote,
+      location: extracted.location,
+      criteria: {
+        targetRoles: user.targetRoles,
+        skills: user.skills,
+        remoteOnly: user.preferences.remoteOnly,
+        internshipsJuniorOnly: user.preferences.internshipsJuniorOnly,
+        minMatchThreshold: user.preferences.minMatchThreshold
+      }
+    });
+
+    // 4. Build Outreach Pitch
+    const pitchMessage = user.preferences.pitchTemplate
+      .replace(/{{contact_name}}/g, extracted.poster || 'Hiring Team')
+      .replace(/{{role_title}}/g, extracted.title)
+      .replace(/{{matched_tech}}/g, extracted.matchedTech.join(', '))
+      .replace(/{{portfolio_url}}/g, user.portfolioUrl)
+      .replace(/{{linkedin_url}}/g, user.linkedinUrl)
+      .replace(/{{github_url}}/g, user.githubUrl);
+
+    let clickToChatUrl: string | undefined = undefined;
+    if (extracted.contactType === 'whatsapp' && extracted.contact && extracted.contact !== 'N/A') {
+      clickToChatUrl = WhatsAppService.generateClickToChatUrl(extracted.contact, pitchMessage);
+    }
+
+    let status: 'pending' | 'auto-sent' | 'discarded' = 'pending';
+    let appStatus: any = 'Review Required';
+    let directDispatched = false;
+
+    // DIRECT DISPATCH: If match >= threshold and email contact is present, auto-send email with CV & portfolio
+    const defaultCV = user.cvs.find(c => c.isDefault) || user.cvs[0];
+    if (evalResult.score >= user.preferences.minMatchThreshold && extracted.contactType === 'email' && extracted.contact.includes('@')) {
+      try {
+        const emailRes = await emailService.sendApplicationEmail({
+          to: extracted.contact,
+          subject: `Application for ${extracted.title} — ${user.fullName}`,
+          body: pitchMessage,
+          cvFilePath: defaultCV?.filepath
+        });
+        if (emailRes.success) {
+          status = 'auto-sent';
+          appStatus = 'Submitted';
+          directDispatched = true;
+          logger.info(`Instant automated email dispatched to ${extracted.contact}`);
+        }
+      } catch (err: any) {
+        logger.error(`Webhook auto-email failed: ${err.message}`);
+      }
+    }
+
+    const job = await JobOpportunity.create({
+      title: extracted.title,
+      company: extracted.company,
+      channel,
+      groupName,
+      poster: extracted.poster,
+      contact: extracted.contact,
+      contactType: extracted.contactType,
+      rawText,
+      extractedSkills: extracted.extractedSkills,
+      matchedTech: extracted.matchedTech,
+      seniority: extracted.seniority,
+      location: extracted.location,
+      isRemote: extracted.isRemote,
+      salaryStipend: extracted.salaryStipend,
+      applicationUrl: extracted.applicationUrl,
+      clickToChatUrl,
+      matchScore: evalResult.score,
+      matchExplanation: evalResult.explanation,
+      duplicateFingerprint: fingerprint,
+      status,
+      applicationStatus: appStatus,
+      pitchSent: directDispatched ? pitchMessage : null,
+      discoveredAt: new Date(),
+      isDemo: false
+    });
+
+    await ActivityLog.create({
+      type: 'discovery',
+      title: `Live Group Job Detected: ${job.title}`,
+      description: `Source: ${groupName} (${channel}). Score: ${job.matchScore}%. ${directDispatched ? 'Direct application email sent with CV!' : ''}`,
+      level: directDispatched ? 'success' : 'info',
+      relatedJobId: job._id
+    });
+
+    res.status(201).json({
+      success: true,
+      message: directDispatched ? 'Job analyzed and application email dispatched directly.' : 'Job analyzed and added to pipeline.',
+      jobId: job._id,
+      matchScore: job.matchScore,
+      directDispatched,
+      clickToChatUrl
+    });
+  } catch (error: any) {
+    logger.error('Inbound job webhook error:', error.message);
+    res.status(500).json({ success: false, message: error.message });
   }
 }
 
