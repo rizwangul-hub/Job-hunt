@@ -1,0 +1,10 @@
+{
+  "name": "rizagent-job-hunter",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "whatsapp:bot": "cd backend && npm run whatsapp:bot",
+    "backend:dev": "cd backend && npm run dev",
+    "frontend:dev": "cd frontend && npm run dev"
+  }
+}

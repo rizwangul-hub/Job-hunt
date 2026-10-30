@@ -40,3 +40,9 @@ Thumbs.db
 
 # Test coverage
 coverage/
+
+# WhatsApp Web Session storage
+.wwebjs_auth/
+.wwebjs_cache/
+backend/.wwebjs_auth/
+backend/.wwebjs_cache/
