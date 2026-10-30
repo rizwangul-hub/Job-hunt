@@ -1,7 +1,9 @@
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const puppeteer = require('puppeteer');
 const qrcode = require('qrcode-terminal');
+const QRCode = require('qrcode');
 const nodemailer = require('nodemailer');
+const http = require('http');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
@@ -65,11 +67,21 @@ const client = new Client({
   }
 });
 
+let currentQrDataUrl = null;
+let botStatus = 'Initializing WhatsApp Web...';
+let isOnline = false;
+
 client.on('loading_screen', (percent, message) => {
+  botStatus = `Loading WhatsApp Web: ${percent}% - ${message}`;
   console.log(`⏳ Loading WhatsApp Web: ${percent}% - ${message}`);
 });
 
-client.on('qr', (qr) => {
+client.on('qr', async (qr) => {
+  try {
+    currentQrDataUrl = await QRCode.toDataURL(qr, { scale: 8, margin: 2 });
+    botStatus = 'Scan QR code with your phone';
+  } catch (e) {}
+
   console.log('\n================================================================');
   console.log('📱 SCAN THIS QR CODE WITH YOUR WHATSAPP TO LINK AUTO-HUNTER:');
   console.log('   1. Open WhatsApp on your phone');
@@ -80,6 +92,8 @@ client.on('qr', (qr) => {
 });
 
 client.on('authenticated', () => {
+  botStatus = 'Authenticated! WhatsApp session saved.';
+  currentQrDataUrl = null;
   console.log('🔐 Authentication successful! WhatsApp session saved.');
 });
 
@@ -88,6 +102,9 @@ client.on('auth_failure', (msg) => {
 });
 
 client.on('ready', () => {
+  isOnline = true;
+  currentQrDataUrl = null;
+  botStatus = 'Online and watching groups in real time 24/7';
   console.log('\n======================================================');
   console.log('✅ RIZAGENT WHATSAPP AUTO-HUNTER IS ONLINE AND ACTIVE!');
   console.log('👀 Listening to all your WhatsApp groups in real time...');
@@ -95,6 +112,90 @@ client.on('ready', () => {
   console.log('📧 Recruiter with Email -> Auto-emails CV & Tailored Cover Letter');
   console.log('💬 Recruiter with Phone -> Auto-messages WhatsApp Pitch & CV');
   console.log('======================================================\n');
+});
+
+// Start lightweight web UI for scanning QR code directly in the browser
+const webPort = process.env.PORT || 8080;
+const server = http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+  if (isOnline) {
+    res.end(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>RizAgent WhatsApp Bot</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <style>
+            body { background: #0b0f19; color: #fff; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; text-align: center; }
+            .card { background: #131b2e; border: 1px solid #10b981; border-radius: 16px; padding: 32px; max-width: 420px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+            h1 { color: #10b981; font-size: 22px; margin-bottom: 8px; }
+            p { color: #94a3b8; font-size: 14px; line-height: 1.6; }
+            .badge { display: inline-block; background: rgba(16,185,129,0.15); color: #34d399; padding: 4px 12px; border-radius: 999px; font-weight: bold; font-size: 12px; border: 1px solid rgba(16,185,129,0.3); }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <span class="badge">🟢 24/7 CLOUD ACTIVE</span>
+            <h1>RizAgent WhatsApp Auto-Hunter</h1>
+            <p>Your bot is <strong>connected to WhatsApp</strong> and actively monitoring your job groups in real time!</p>
+            <p style="font-size: 12px; color: #64748b;">Target: MERN Stack | React | Node.js | React Native</p>
+          </div>
+        </body>
+      </html>
+    `);
+  } else if (currentQrDataUrl) {
+    res.end(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Scan WhatsApp QR Code</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <meta http-equiv="refresh" content="6">
+          <style>
+            body { background: #0b0f19; color: #fff; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; text-align: center; padding: 20px; }
+            .card { background: #131b2e; border: 1px solid #334155; border-radius: 16px; padding: 28px; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+            h2 { font-size: 20px; margin-top: 0; color: #f8fafc; }
+            p { color: #94a3b8; font-size: 13px; line-height: 1.5; }
+            img { width: 260px; height: 260px; border: 8px solid #ffffff; border-radius: 12px; margin: 15px 0; }
+            .step { background: #1e293b; padding: 10px; border-radius: 8px; font-size: 12px; color: #cbd5e1; text-align: left; margin-bottom: 8px; }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <h2>📱 Link WhatsApp Auto-Hunter</h2>
+            <div class="step">1. Open WhatsApp on your phone</div>
+            <div class="step">2. Tap <strong>Settings</strong> &gt; <strong>Linked Devices</strong></div>
+            <div class="step">3. Tap <strong>Link a Device</strong> &amp; point camera below:</div>
+            <img src="${currentQrDataUrl}" alt="WhatsApp QR Code" />
+            <p>⏳ This QR code updates automatically. Scan it now!</p>
+          </div>
+        </body>
+      </html>
+    `);
+  } else {
+    res.end(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Starting WhatsApp...</title>
+          <meta http-equiv="refresh" content="4">
+          <style>
+            body { background: #0b0f19; color: #fff; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; text-align: center; }
+            h2 { color: #38bdf8; }
+            p { color: #94a3b8; }
+          </style>
+        </head>
+        <body>
+          <h2>⏳ ${botStatus}</h2>
+          <p>Please wait a few seconds. The page will refresh automatically...</p>
+        </body>
+      </html>
+    `);
+  }
+});
+
+server.listen(webPort, () => {
+  console.log(`🌐 Web interface active on port ${webPort} for instant browser QR code scanning`);
 });
 
 // Avoid processing identical messages repeatedly
