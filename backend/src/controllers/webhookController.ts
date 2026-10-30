@@ -137,7 +137,8 @@ export async function handleInboundJobWebhook(req: Request, res: Response): Prom
 
     // DIRECT DISPATCH: If match >= threshold and email contact is present, auto-send email with CV & portfolio
     const defaultCV = user.cvs.find(c => c.isDefault) || user.cvs[0];
-    if (evalResult.score >= user.preferences.minMatchThreshold && targetEmail) {
+    const threshold = user.preferences?.minMatchThreshold || 75;
+    if (evalResult.score >= threshold && targetEmail) {
       try {
         const emailRes = await emailService.sendApplicationEmail({
           to: targetEmail,
@@ -204,6 +205,7 @@ export async function handleInboundJobWebhook(req: Request, res: Response): Prom
         matchScore: job.matchScore
       },
       matchScore: job.matchScore,
+      minMatchThreshold: threshold,
       directDispatched,
       recipientEmail: targetEmail,
       recipientPhone: targetPhone,

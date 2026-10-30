@@ -125,7 +125,25 @@ Full-Stack Developer`;
     }
 
     // 2. Application URL
-    let applicationUrl = urlMatch ? urlMatch[0].replace(/[),.]+$/, '') : undefined;
+    let applicationUrl: string | undefined = undefined;
+    const allUrls = rawText.match(/(https?:\/\/[^\s]+)/g) || [];
+    for (const u of allUrls) {
+      const cleanU = u.replace(/[),.]+$/, '');
+      const lowerU = cleanU.toLowerCase();
+      if (!lowerU.includes('wa.me') && 
+          !lowerU.includes('whatsapp.com') && 
+          !lowerU.includes('facebook.com') && 
+          !lowerU.includes('fb.com') && 
+          !lowerU.includes('instagram.com') && 
+          !lowerU.includes('youtube.com') && 
+          !lowerU.includes('twitter.com') && 
+          !lowerU.includes('x.com') && 
+          !lowerU.includes('linkedin.com/company') &&
+          !lowerU.includes('linkedin.com/in')) {
+        applicationUrl = cleanU;
+        break;
+      }
+    }
 
     // 3. Technologies
     const extractedSkills: string[] = [];
@@ -152,25 +170,36 @@ Full-Stack Developer`;
 
     // 5. Title Extraction
     let title = 'Software Developer';
-    if (lower.includes('mern') || lower.includes('mern stack')) {
+    const hiringTitleMatch = rawText.match(/(?:hiring|role|position|opening|job)\s*:\s*([^\n\r*]+)/i);
+    if (hiringTitleMatch && hiringTitleMatch[1]) {
+      const detected = hiringTitleMatch[1].replace(/[*_#]/g, '').trim();
+      if (detected.length >= 3 && detected.length <= 40) {
+        title = detected;
+      }
+    } else if (lower.includes('mern') || lower.includes('mern stack')) {
       title = 'Full-Stack MERN Developer';
+    } else if (lower.includes('full stack') || lower.includes('fullstack') || lower.includes('full-stack')) {
+      title = 'Full Stack Developer';
     } else if (lower.includes('react native') || lower.includes('mobile developer')) {
       title = 'React Native Mobile Developer';
-    } else if (lower.includes('react')) {
+    } else if (lower.includes('react') || lower.includes('frontend')) {
       title = 'React Frontend Developer';
     } else if (lower.includes('node') || lower.includes('backend')) {
       title = 'Node.js Backend Developer';
-    } else if (lower.includes('full stack') || lower.includes('fullstack')) {
-      title = 'Full Stack Developer';
-    } else if (lower.includes('intern')) {
+    } else if (lower.includes('intern') || lower.includes('trainee')) {
       title = 'Software Development Intern';
     }
 
     // 6. Company
     let company = 'Undisclosed';
-    const atMatch = rawText.match(/(?:at|with|for|join)\s+([A-Z][A-Za-z0-9&.\s]{2,20})/);
-    if (atMatch && atMatch[1]) {
-      company = atMatch[1].trim();
+    const companyLabelMatch = rawText.match(/(?:🏢\s*company|company|organization|firm|agency)\s*:\s*([^\n\r]+)/i);
+    if (companyLabelMatch && companyLabelMatch[1]) {
+      company = companyLabelMatch[1].replace(/[*_#]/g, '').trim();
+    } else {
+      const atMatch = rawText.match(/(?:at|with|for|join)\s+([A-Z][A-Za-z0-9&.\s]{2,20})/);
+      if (atMatch && atMatch[1]) {
+        company = atMatch[1].trim();
+      }
     }
 
     // 7. Poster

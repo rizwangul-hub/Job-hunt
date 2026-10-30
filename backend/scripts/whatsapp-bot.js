@@ -313,8 +313,9 @@ ${candidateName}`;
     // 1. AUTO-EMAIL DISPATCH (Local SMTP fallback guarantees delivery with local CV)
     const emailMatch = text.match(/[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}/);
     const targetEmail = data.recipientEmail || (emailMatch ? emailMatch[0] : null);
+    const minThreshold = data.minMatchThreshold || 75;
 
-    if (score >= 80 && targetEmail) {
+    if (score >= minThreshold && targetEmail) {
       if (mailTransporter) {
         try {
           await mailTransporter.sendMail({
@@ -341,7 +342,7 @@ ${candidateName}`;
     const phoneMatch = text.match(/(?:\+92|03\d{2})[-.\s]?\d{7}|\b\d{10,12}\b/);
     const targetPhone = data.recipientPhone || job.contact || (phoneMatch ? phoneMatch[0] : null);
 
-    if (score >= 80 && targetPhone) {
+    if (score >= minThreshold && targetPhone) {
       let cleanPhone = targetPhone.replace(/[^\d]/g, '');
       if (cleanPhone.startsWith('03') && cleanPhone.length === 11) {
         cleanPhone = '92' + cleanPhone.substring(1);
@@ -404,7 +405,15 @@ ${candidateName}`;
                !l.includes('rizwanmerndev') && 
                !l.includes('rizwangul-hub') &&
                !l.includes('wa.me') &&
-               !l.includes('whatsapp.com');
+               !l.includes('whatsapp.com') &&
+               !l.includes('facebook.com') &&
+               !l.includes('fb.com') &&
+               !l.includes('instagram.com') &&
+               !l.includes('twitter.com') &&
+               !l.includes('x.com') &&
+               !l.includes('youtube.com') &&
+               !l.includes('linkedin.com/company') &&
+               !l.includes('linkedin.com/in');
       });
 
       if (externalUrls.length > 0) {
