@@ -237,7 +237,8 @@ Full-Stack Developer`;
   }
 
   private async extractWithGemini(rawText: string): Promise<ExtractedJobData> {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${env.GEMINI_API_KEY}`;
+    const model = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`;
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
