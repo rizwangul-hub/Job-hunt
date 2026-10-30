@@ -314,23 +314,27 @@ ${candidateName}`;
     const emailMatch = text.match(/[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}/);
     const targetEmail = data.recipientEmail || (emailMatch ? emailMatch[0] : null);
 
-    if (score >= 80 && targetEmail && mailTransporter) {
-      try {
-        await mailTransporter.sendMail({
-          from: process.env.SMTP_FROM || process.env.SMTP_USER,
-          to: targetEmail,
-          subject: `Application for ${title} — ${candidateName}`,
-          text: pitch,
-          attachments: cvPath && fs.existsSync(cvPath) 
-            ? [{ filename: `${candidateName} - Full Stack Developer CV.pdf`, path: cvPath }] 
-            : []
-        });
-        console.log(`📧 [EMAIL SENT] Application & CV PDF emailed successfully to recruiter: ${targetEmail}`);
-      } catch (mailErr) {
-        console.log(`⚠️ Email dispatch notice: ${mailErr.message}`);
+    if (score >= 80 && targetEmail) {
+      if (mailTransporter) {
+        try {
+          await mailTransporter.sendMail({
+            from: process.env.SMTP_FROM || process.env.SMTP_USER,
+            to: targetEmail,
+            subject: `Application for ${title} — ${candidateName}`,
+            text: pitch,
+            attachments: cvPath && fs.existsSync(cvPath) 
+              ? [{ filename: `${candidateName} - Full Stack Developer CV.pdf`, path: cvPath }] 
+              : []
+          });
+          console.log(`📧 [EMAIL SENT] Application & CV PDF emailed successfully to recruiter: ${targetEmail}`);
+        } catch (mailErr) {
+          console.log(`⚠️ Email dispatch notice: ${mailErr.message}`);
+        }
+      } else if (data.directDispatched) {
+        console.log(`📧 [EMAIL SENT] CV (Resume.pdf) & cover letter emailed to: ${targetEmail}`);
+      } else {
+        console.log(`⚠️ Email skipped for ${targetEmail}: SMTP_USER or SMTP_PASS environment variable is missing in Railway Variables!`);
       }
-    } else if (data.directDispatched) {
-      console.log(`📧 [EMAIL SENT] CV (Resume.pdf) & cover letter emailed to: ${targetEmail}`);
     }
 
     // 2. AUTO-WHATSAPP OUTREACH DISPATCH
