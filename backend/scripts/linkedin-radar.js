@@ -423,8 +423,8 @@ function startHealthServer() {
     `);
   });
 
-  server.listen(port, () => {
-    console.log(`🌐 LinkedIn Radar HTTP Server active on port ${port} (Render Health Check Ready)`);
+  server.listen(port, '0.0.0.0', () => {
+    console.log(`🌐 LinkedIn Radar HTTP Server active on 0.0.0.0:${port} (Cloud Health Check Ready)`);
   });
 }
 

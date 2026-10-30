@@ -235,7 +235,7 @@ client.on('ready', () => {
 });
 
 // Start lightweight web UI for scanning QR code directly in the browser
-const webPort = process.env.PORT || 8080;
+const webPort = parseInt(process.env.PORT || '8080', 10);
 const server = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
   if (isOnline) {
@@ -314,8 +314,8 @@ const server = http.createServer((req, res) => {
   }
 });
 
-server.listen(webPort, () => {
-  console.log(`🌐 Web interface active on port ${webPort} for instant browser QR code scanning`);
+server.listen(webPort, '0.0.0.0', () => {
+  console.log(`🌐 Web interface active on 0.0.0.0:${webPort} for instant browser QR code scanning`);
 });
 
 // Avoid processing identical messages repeatedly

@@ -1,0 +1,8 @@
+node_modules
+npm-debug.log
+.git
+.github
+frontend
+.wwebjs_cache
+.linkedin_auth
+.linkedin_radar_cache.json
