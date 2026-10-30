@@ -19,12 +19,12 @@ export const ProfilePage: React.FC = () => {
   const { showToast } = useMode();
 
   const [fullName, setFullName] = useState(user?.fullName || 'Rizwan Ullah');
-  const [handle, setHandle] = useState(user?.handle || 'RizMern');
+  const [handle, setHandle] = useState(user?.handle || 'Rizwan');
   const [phone, setPhone] = useState(user?.phone || '+92 300 0000000');
   const [whatsapp, setWhatsapp] = useState(user?.whatsapp || '+92 300 0000000');
-  const [portfolioUrl, setPortfolioUrl] = useState(user?.portfolioUrl || 'https://rizwanullah.dev');
-  const [linkedinUrl, setLinkedinUrl] = useState(user?.linkedinUrl || 'https://linkedin.com/in/rizwanullah');
-  const [githubUrl, setGithubUrl] = useState(user?.githubUrl || 'https://github.com/rizwanullah');
+  const [portfolioUrl, setPortfolioUrl] = useState(user?.portfolioUrl || 'https://full-stack-portfolio-coral.vercel.app');
+  const [linkedinUrl, setLinkedinUrl] = useState(user?.linkedinUrl || 'https://www.linkedin.com/in/rizwanmerndev');
+  const [githubUrl, setGithubUrl] = useState(user?.githubUrl || 'https://github.com/rizwangul-hub');
   const [targetRoles, setTargetRoles] = useState(user?.targetRoles?.join(', ') || 'Full-Stack MERN Developer, React Native Mobile Engineer');
   const [pitchTemplate, setPitchTemplate] = useState(
     user?.preferences?.pitchTemplate ||
@@ -41,12 +41,12 @@ export const ProfilePage: React.FC = () => {
   useEffect(() => {
     if (user) {
       setFullName(user.fullName || 'Rizwan Ullah');
-      setHandle(user.handle || 'RizMern');
+      setHandle(user.handle || 'Rizwan');
       setPhone(user.phone || '+92 300 0000000');
       setWhatsapp(user.whatsapp || '+92 300 0000000');
-      setPortfolioUrl(user.portfolioUrl || 'https://rizwanullah.dev');
-      setLinkedinUrl(user.linkedinUrl || 'https://linkedin.com/in/rizwanullah');
-      setGithubUrl(user.githubUrl || 'https://github.com/rizwanullah');
+      setPortfolioUrl(user.portfolioUrl || 'https://full-stack-portfolio-coral.vercel.app');
+      setLinkedinUrl(user.linkedinUrl || 'https://www.linkedin.com/in/rizwanmerndev');
+      setGithubUrl(user.githubUrl || 'https://github.com/rizwangul-hub');
       setTargetRoles(user.targetRoles?.join(', ') || '');
       if (user.preferences?.pitchTemplate) setPitchTemplate(user.preferences.pitchTemplate);
       if (user.preferences?.minMatchThreshold) setThreshold(user.preferences.minMatchThreshold);
@@ -158,7 +158,7 @@ export const ProfilePage: React.FC = () => {
                   value={handle}
                   onChange={(e) => setHandle(e.target.value)}
                   className="bg-dark-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 text-xs font-mono focus:border-emerald-500 outline-none"
-                  placeholder="Handle (e.g. RizMern)"
+                  placeholder="Handle (e.g. Rizwan)"
                 />
               </div>
             </div>

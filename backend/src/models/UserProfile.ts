@@ -76,12 +76,12 @@ const UserProfileSchema = new Schema<IUserProfile>(
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     passwordHash: { type: String, required: true },
     fullName: { type: String, required: true, default: 'Rizwan Ullah' },
-    handle: { type: String, default: 'RizMern' },
+    handle: { type: String, default: 'Rizwan' },
     phone: { type: String, default: '+92 300 0000000' },
     whatsapp: { type: String, default: '+92 300 0000000' },
-    portfolioUrl: { type: String, default: 'https://rizwanullah.dev' },
-    linkedinUrl: { type: String, default: 'https://linkedin.com/in/rizwanullah' },
-    githubUrl: { type: String, default: 'https://github.com/rizwanullah' },
+    portfolioUrl: { type: String, default: 'https://full-stack-portfolio-coral.vercel.app' },
+    linkedinUrl: { type: String, default: 'https://www.linkedin.com/in/rizwanmerndev' },
+    githubUrl: { type: String, default: 'https://github.com/rizwangul-hub' },
     targetRoles: {
       type: [String],
       default: [

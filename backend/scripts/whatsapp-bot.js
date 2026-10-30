@@ -207,7 +207,7 @@ Links & Demos:
 I have attached my resume below for your review. Looking forward to discussing how I can add immediate value to your team!
 
 Best regards,
-${candidateName} (RizMern)`;
+${candidateName}`;
 
     // 1. AUTO-EMAIL DISPATCH (Local SMTP fallback guarantees delivery with local CV)
     const emailMatch = text.match(/[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}/);

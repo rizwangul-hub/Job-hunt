@@ -92,7 +92,7 @@ My work focuses on clean architecture, responsive user experiences, resilient RE
 I am eager to discuss how my technical skills and work ethic align with your goals for this role. Thank you for your time and consideration.
 
 Warm regards,
-Rizwan Ullah (RizMern)
+Rizwan Ullah
 Full-Stack Developer`;
   }
 

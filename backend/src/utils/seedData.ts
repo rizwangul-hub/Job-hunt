@@ -21,7 +21,7 @@ export async function seedInitialData(): Promise<void> {
       email: env.ADMIN_EMAIL,
       passwordHash,
       fullName: env.ADMIN_NAME,
-      handle: 'RizMern',
+      handle: 'Rizwan',
       phone: '+92 300 0000000',
       whatsapp: '+92 300 0000000',
       portfolioUrl: 'https://full-stack-portfolio-coral.vercel.app',

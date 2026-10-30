@@ -91,7 +91,7 @@ export const Navbar: React.FC<NavbarProps> = ({ unreadCount = 0, onSimulatePost 
                 <span className="text-xs text-slate-400 hidden sm:inline">| Full-Stack Autonomous Pipeline</span>
               </div>
               <p className="text-xs text-slate-400 flex items-center gap-1.5">
-                Targeting: <span className="text-slate-200 font-medium">MERN & React Native</span> &bull; <span>{user?.fullName || 'Rizwan Ullah (RizMern)'}</span>
+                Targeting: <span className="text-slate-200 font-medium">MERN & React Native</span> &bull; <span>{user?.fullName || 'Rizwan Ullah'}</span>
               </p>
             </div>
           </NavLink>

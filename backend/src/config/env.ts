@@ -13,7 +13,7 @@ export const env = {
   
   // Single user initial credentials
   ADMIN_EMAIL: process.env.ADMIN_EMAIL || 'rizwangul535@gmail.com',
-  ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || 'RizMern2026!Secure',
+  ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || 'Rizwan2026!Secure',
   ADMIN_NAME: process.env.ADMIN_NAME || 'Rizwan Ullah',
 
   // AI Provider

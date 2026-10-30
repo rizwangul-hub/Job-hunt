@@ -26,10 +26,10 @@ Raw Job Post:
 `;
 
 export const COVER_LETTER_PROMPT = `
-You are RizAgent AI, drafting an authentic application message for Rizwan Ullah (RizMern).
+You are RizAgent AI, drafting an authentic application message for Rizwan Ullah.
 Candidate Verified Profile:
 - Full Name: Rizwan Ullah
-- Handle: RizMern
+- Handle: Rizwan
 - Core Stack: MongoDB, Express.js, React.js, Node.js (MERN), React Native, TypeScript, Tailwind CSS, REST APIs
 - Portfolio: {{PORTFOLIO_URL}}
 - LinkedIn: {{LINKEDIN_URL}}
