@@ -114,25 +114,36 @@ client.on('ready', () => {
   console.log('💬 Recruiter with Phone -> Auto-messages WhatsApp Pitch & CV Document');
   console.log('======================================================\n');
 
-  // Periodic WhatsApp Channel Scanner (every 45 seconds)
-  setInterval(async () => {
+  // Periodic WhatsApp Active Group & Channel Catch-Up Scanner (every 45 seconds)
+  async function scanActiveGroups() {
     try {
-      if (!isOnline) return;
-      if (typeof client.getChannels === 'function') {
-        const channels = await client.getChannels();
-        for (const ch of channels) {
+      console.log('🔄 Checking all active WhatsApp groups for recent jobs...');
+      const chats = await client.getChats();
+      let scannedCount = 0;
+      for (const c of chats) {
+        const isGrp = c.isGroup || (c.id && c.id.server === 'newsletter') || (c.id && c.id._serialized && c.id._serialized.includes('@g.us'));
+        if (isGrp) {
+          scannedCount++;
           try {
-            const recentMsgs = await ch.fetchMessages({ limit: 4 });
-            for (const rm of recentMsgs) {
-              if (rm && (rm.body || rm.caption)) {
-                client.emit('message_create', rm);
+            const msgs = await c.fetchMessages({ limit: 8 });
+            for (const rm of msgs) {
+              if (rm && (rm.body || rm.caption) && !rm.fromMe) {
+                await processIncomingMessage(rm, c);
               }
             }
           } catch (mErr) {}
         }
       }
-    } catch (chErr) {}
-  }, 45000);
+      console.log(`✅ Checked ${scannedCount} active groups & channels for jobs.`);
+    } catch (chErr) {
+      console.log('Group catch-up notice:', chErr.message);
+    }
+  }
+
+  // Scan immediately 6 seconds after connecting
+  setTimeout(scanActiveGroups, 6000);
+  // Re-check groups every 45s so no job in any group is ever missed
+  setInterval(scanActiveGroups, 45000);
 
   // FEATURE 5: Automated 3-Day Polite Follow-Up Routine (Checks every 2 hours)
   setInterval(async () => {
@@ -171,22 +182,23 @@ client.on('ready', () => {
       }
     } catch (feedErr) {}
   }, 30 * 60 * 1000);
+
+  // FEATURE 6: Autonomous LinkedIn Public Radar (Runs 2 mins after WhatsApp ready, then every 35 mins)
+  setTimeout(() => {
+    try {
+      const { scanLinkedInPublicJobs } = require('./linkedin-radar');
+      scanLinkedInPublicJobs().catch(() => null);
+    } catch (rErr) {}
+  }, 120000);
+
+  setInterval(async () => {
+    try {
+      if (!isOnline) return;
+      const { scanLinkedInPublicJobs } = require('./linkedin-radar');
+      await scanLinkedInPublicJobs().catch(() => null);
+    } catch (rErr) {}
+  }, 35 * 60 * 1000);
 });
-
-// FEATURE 6: Autonomous LinkedIn Public Radar (Runs 24/7 on cloud even if WhatsApp is waiting for scan)
-setTimeout(() => {
-  try {
-    const { scanLinkedInPublicJobs } = require('./linkedin-radar');
-    scanLinkedInPublicJobs().catch(() => null);
-  } catch (rErr) {}
-}, 20000); // Initial scan 20s after boot
-
-setInterval(async () => {
-  try {
-    const { scanLinkedInPublicJobs } = require('./linkedin-radar');
-    await scanLinkedInPublicJobs().catch(() => null);
-  } catch (rErr) {}
-}, 35 * 60 * 1000);
 
 // Start lightweight web UI for scanning QR code directly in the browser
 const webPort = process.env.PORT || 8080;
@@ -275,10 +287,10 @@ server.listen(webPort, () => {
 // Avoid processing identical messages repeatedly
 const processedMessageHashes = new Set();
 
-client.on('message_create', async (msg) => {
+async function processIncomingMessage(msg, preloadedChat = null) {
   try {
     const text = msg.body || msg.caption || '';
-    if (!text || text.trim().length < 12) return;
+    if (!text || text.trim().length < 4) return;
 
     // Avoid reacting to bot's own outreach pitches
     const isBotPitch = 
@@ -289,20 +301,30 @@ client.on('message_create', async (msg) => {
 
     let groupName = 'Direct Chat';
     let isChannel = false;
-    let chat = null;
-    try {
-      chat = await msg.getChat();
-      if (chat) {
-        isChannel = (chat.id && chat.id.server === 'newsletter') || chat.isChannel || false;
-        groupName = chat.name || (isChannel ? 'WhatsApp Channel' : (chat.isGroup ? 'WhatsApp Group' : 'Direct Chat'));
-      }
-    } catch (e) {}
+    let chat = preloadedChat;
+    if (!chat) {
+      try {
+        chat = await msg.getChat();
+      } catch (e) {}
+    }
+    if (chat) {
+      isChannel = (chat.id && chat.id.server === 'newsletter') || chat.isChannel || false;
+      groupName = chat.name || (isChannel ? 'WhatsApp Channel' : (chat.isGroup ? 'WhatsApp Group' : 'Direct Chat'));
+    }
+
+    const fromStr = (msg.from || '') + ' ' + (msg.to || '');
+    if (fromStr.includes('@g.us') && groupName === 'Direct Chat') {
+      groupName = 'WhatsApp Group';
+    } else if (fromStr.includes('@newsletter') && groupName === 'Direct Chat') {
+      groupName = 'WhatsApp Channel';
+    }
 
     // Print live chat activity so you can see messages being processed
     console.log(`[💬 Seen in "${groupName}"]: "${text.substring(0, 60).replace(/\n/g, ' ')}..."`);
 
     // Check if this is an incoming recruiter response in a direct chat
-    const isDirectChat = chat && (!chat.isGroup && !isChannel && !msg.fromMe);
+    const isGroupOrChannel = (chat && (chat.isGroup || isChannel)) || fromStr.includes('@g.us') || fromStr.includes('@newsletter');
+    const isDirectChat = !isGroupOrChannel && !msg.fromMe;
     const candidateAlertPhone = (process.env.CANDIDATE_WHATSAPP || '923255984244').replace(/[^\d]/g, '');
     const calendly = process.env.CANDIDATE_CALENDLY || 'https://calendly.com/rizwangul-dev';
     const candidateName = process.env.CANDIDATE_NAME || 'Rizwan Ullah';
@@ -812,6 +834,17 @@ Email: rizwangul535@gmail.com`;
     console.log(`------------------------------------------------------\n`);
   } catch (err) {
     console.error('Error processing group message:', err.message);
+  }
+}
+
+// Attach event listeners for real-time incoming messages
+client.on('message', async (msg) => {
+  await processIncomingMessage(msg);
+});
+
+client.on('message_create', async (msg) => {
+  if (!msg.fromMe) {
+    await processIncomingMessage(msg);
   }
 });
 
