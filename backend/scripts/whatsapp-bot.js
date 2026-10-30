@@ -1,4 +1,5 @@
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
+const puppeteer = require('puppeteer');
 const qrcode = require('qrcode-terminal');
 const fs = require('fs');
 const path = require('path');
@@ -29,12 +30,16 @@ if (cvPath) {
   console.log('⚠️ No CV file found in uploads. Will send Portfolio & Pitch.');
 }
 
+console.log('⏳ Starting Chromium browser and connecting to WhatsApp Web...');
+console.log('⏳ Please wait ~5-10 seconds for the QR code to appear...\n');
+
 const client = new Client({
   authStrategy: new LocalAuth({
     dataPath: path.join(__dirname, '../.wwebjs_auth')
   }),
   puppeteer: {
     headless: true,
+    executablePath: puppeteer.executablePath ? puppeteer.executablePath() : undefined,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -45,6 +50,10 @@ const client = new Client({
       '--disable-gpu'
     ]
   }
+});
+
+client.on('loading_screen', (percent, message) => {
+  console.log(`⏳ Loading WhatsApp Web: ${percent}% - ${message}`);
 });
 
 client.on('qr', (qr) => {
