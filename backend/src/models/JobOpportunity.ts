@@ -39,6 +39,10 @@ export interface IJobOpportunity extends Document {
     | 'Offer'
     | 'Closed';
   pitchSent?: string | null;
+  followUpSent?: boolean;
+  followUpSentAt?: Date;
+  lastRecruiterMessage?: string;
+  repliedByRecruiter?: boolean;
   discoveredAt: Date;
   isDemo: boolean;
   createdAt: Date;
@@ -102,6 +106,10 @@ const JobOpportunitySchema = new Schema<IJobOpportunity>(
       default: 'Discovered'
     },
     pitchSent: { type: String, default: null },
+    followUpSent: { type: Boolean, default: false },
+    followUpSentAt: { type: Date },
+    lastRecruiterMessage: { type: String },
+    repliedByRecruiter: { type: Boolean, default: false },
     discoveredAt: { type: Date, default: Date.now },
     isDemo: { type: Boolean, default: false }
   },
