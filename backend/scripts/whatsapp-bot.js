@@ -71,9 +71,36 @@ let currentQrDataUrl = null;
 let botStatus = 'Initializing WhatsApp Web...';
 let isOnline = false;
 
+let readyWatchdog = null;
 client.on('loading_screen', (percent, message) => {
   botStatus = `Loading WhatsApp Web: ${percent}% - ${message}`;
   console.log(`⏳ Loading WhatsApp Web: ${percent}% - ${message}`);
+
+  if (percent >= 90) {
+    if (!readyWatchdog) {
+      readyWatchdog = setInterval(async () => {
+        if (isOnline) {
+          clearInterval(readyWatchdog);
+          return;
+        }
+        if (client.pupPage && !client.pupPage.isClosed()) {
+          try {
+            const isLoaded = await client.pupPage.evaluate(() => {
+              const hasPane = Boolean(document.querySelector('#pane-side') || document.querySelector('div[data-tab="3"]') || document.querySelector('#app'));
+              const hasStore = Boolean(window.Store && (window.Store.Chat || window.Store.Msg));
+              return hasPane || hasStore;
+            });
+            if (isLoaded && !isOnline) {
+              console.log('⚡ WhatsApp Web DOM & chat pane detected! Transitioning to ACTIVE state...');
+              isOnline = true;
+              clearInterval(readyWatchdog);
+              client.emit('ready');
+            }
+          } catch (e) {}
+        }
+      }, 4000);
+    }
+  }
 });
 
 client.on('qr', async (qr) => {
