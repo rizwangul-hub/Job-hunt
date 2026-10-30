@@ -26,16 +26,26 @@ export class EmailService {
   }
 
   private initTransporter() {
-    if (env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS) {
-      this.transporter = nodemailer.createTransport({
-        host: env.SMTP_HOST,
-        port: env.SMTP_PORT,
-        secure: env.SMTP_PORT === 465,
-        auth: {
-          user: env.SMTP_USER,
-          pass: env.SMTP_PASS,
-        },
-      });
+    if (env.SMTP_USER && env.SMTP_PASS) {
+      if (!env.SMTP_HOST || env.SMTP_HOST.includes('gmail')) {
+        this.transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: {
+            user: env.SMTP_USER,
+            pass: env.SMTP_PASS,
+          },
+        });
+      } else {
+        this.transporter = nodemailer.createTransport({
+          host: env.SMTP_HOST,
+          port: env.SMTP_PORT,
+          secure: env.SMTP_PORT === 465,
+          auth: {
+            user: env.SMTP_USER,
+            pass: env.SMTP_PASS,
+          },
+        });
+      }
     } else {
       this.transporter = null;
     }

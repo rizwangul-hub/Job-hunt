@@ -14,9 +14,7 @@ console.log('======================================================');
 let mailTransporter = null;
 if (process.env.SMTP_USER && process.env.SMTP_PASS) {
   mailTransporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT || '465'),
-    secure: true,
+    service: 'gmail',
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS
@@ -255,8 +253,17 @@ ${candidateName} (RizMern)`;
             }
           } catch (numErr) {}
 
-          // Send pitch text
-          await client.sendMessage(recipientId, pitch);
+          // Obtain Chat object so WhatsApp Web internal memoize store has the valid id
+          let chat = null;
+          try {
+            chat = await client.getChatById(recipientId);
+          } catch (cErr) {}
+
+          if (chat) {
+            await chat.sendMessage(pitch);
+          } else {
+            await client.sendMessage(recipientId, pitch);
+          }
           console.log(`💬 [WHATSAPP OUTREACH] Pitch with Portfolio, GitHub & LinkedIn sent to recruiter (+${cleanPhone})!`);
 
           // Send CV attachment with document flag and brief pause for chat creation
@@ -266,9 +273,12 @@ ${candidateName} (RizMern)`;
               const media = MessageMedia.fromFilePath(cvPath);
               media.filename = `${candidateName} - Full Stack Developer CV.pdf`;
               media.mimetype = 'application/pdf';
-              await client.sendMessage(recipientId, media, {
-                sendMediaAsDocument: true
-              });
+              
+              if (chat) {
+                await chat.sendMessage(media, { sendMediaAsDocument: true });
+              } else {
+                await client.sendMessage(recipientId, media, { sendMediaAsDocument: true });
+              }
               console.log(`📎 [WHATSAPP CV] Resume PDF successfully delivered to recruiter!`);
             } catch (mediaErr) {
               console.log(`⚠️ CV attachment notice: ${mediaErr.message}`);
