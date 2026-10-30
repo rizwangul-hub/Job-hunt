@@ -234,3 +234,18 @@ ${candidateName} (RizMern)`;
 });
 
 client.initialize();
+
+process.on('SIGINT', async () => {
+  console.log('\n🛑 Shutting down WhatsApp bot cleanly...');
+  try {
+    await client.destroy();
+  } catch (e) {}
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  try {
+    await client.destroy();
+  } catch (e) {}
+  process.exit(0);
+});
