@@ -193,9 +193,9 @@ client.on('message_create', async (msg) => {
     console.log(`📊 Profile Match Score: ${score}%`);
 
     const candidateName = process.env.CANDIDATE_NAME || 'Rizwan Ullah';
-    const portfolio = process.env.CANDIDATE_PORTFOLIO || 'https://rizwanullah.dev';
+    const portfolio = process.env.CANDIDATE_PORTFOLIO || 'https://full-stack-portfolio-coral.vercel.app';
     const github = process.env.CANDIDATE_GITHUB || 'https://github.com/rizwangul-hub';
-    const linkedin = process.env.CANDIDATE_LINKEDIN || 'https://linkedin.com/in/rizwanullah';
+    const linkedin = process.env.CANDIDATE_LINKEDIN || 'https://www.linkedin.com/in/rizwanmerndev';
 
     const pitch = `Salam! I saw your post regarding the ${title} position.
 
@@ -259,11 +259,20 @@ ${candidateName} (RizMern)`;
           await client.sendMessage(recipientId, pitch);
           console.log(`💬 [WHATSAPP OUTREACH] Pitch with Portfolio, GitHub & LinkedIn sent to recruiter (+${cleanPhone})!`);
 
-          // Send CV attachment
+          // Send CV attachment with document flag and brief pause for chat creation
           if (cvPath && fs.existsSync(cvPath)) {
-            const media = MessageMedia.fromFilePath(cvPath);
-            await client.sendMessage(recipientId, media, { caption: `${candidateName} - Full Stack Developer CV.pdf` });
-            console.log(`📎 [WHATSAPP CV] Resume PDF successfully delivered to recruiter!`);
+            await new Promise(r => setTimeout(r, 1500));
+            try {
+              const media = MessageMedia.fromFilePath(cvPath);
+              media.filename = `${candidateName} - Full Stack Developer CV.pdf`;
+              media.mimetype = 'application/pdf';
+              await client.sendMessage(recipientId, media, {
+                sendMediaAsDocument: true
+              });
+              console.log(`📎 [WHATSAPP CV] Resume PDF successfully delivered to recruiter!`);
+            } catch (mediaErr) {
+              console.log(`⚠️ CV attachment notice: ${mediaErr.message}`);
+            }
           }
         } catch (sendErr) {
           console.log(`ℹ️ Recruiter WhatsApp direct notice: ${sendErr.message}`);

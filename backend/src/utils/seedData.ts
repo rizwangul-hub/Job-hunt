@@ -24,9 +24,9 @@ export async function seedInitialData(): Promise<void> {
       handle: 'RizMern',
       phone: '+92 300 0000000',
       whatsapp: '+92 300 0000000',
-      portfolioUrl: 'https://rizwanullah.dev',
-      linkedinUrl: 'https://linkedin.com/in/rizwanullah',
-      githubUrl: 'https://github.com/rizwanullah',
+      portfolioUrl: 'https://full-stack-portfolio-coral.vercel.app',
+      linkedinUrl: 'https://www.linkedin.com/in/rizwanmerndev',
+      githubUrl: 'https://github.com/rizwangul-hub',
       targetRoles: [
         'MERN Stack Developer',
         'Full Stack Developer',
