@@ -46,3 +46,9 @@ coverage/
 .wwebjs_cache/
 backend/.wwebjs_auth/
 backend/.wwebjs_cache/
+
+# LinkedIn Bot Storage
+.linkedin_auth/
+backend/.linkedin_auth/
+.linkedin_radar_cache.json
+backend/.linkedin_radar_cache.json

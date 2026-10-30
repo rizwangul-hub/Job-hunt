@@ -9,6 +9,7 @@
     "dev": "nodemon --watch src --exec ts-node src/server.ts",
     "whatsapp:bot": "node scripts/whatsapp-bot.js",
     "linkedin:bot": "node scripts/linkedin-bot.js",
+    "linkedin:radar": "node scripts/linkedin-radar.js",
     "test": "jest --runInBand --detectOpenHandles"
   },
   "dependencies": {

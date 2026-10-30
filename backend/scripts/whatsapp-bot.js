@@ -171,6 +171,22 @@ client.on('ready', () => {
       }
     } catch (feedErr) {}
   }, 30 * 60 * 1000);
+
+  // FEATURE 6: LinkedIn Public Radar Mode (Scans every 35 mins with 0% account ban risk)
+  setTimeout(() => {
+    try {
+      const { scanLinkedInPublicJobs } = require('./linkedin-radar');
+      scanLinkedInPublicJobs().catch(() => null);
+    } catch (rErr) {}
+  }, 90000); // Initial run 90s after startup
+
+  setInterval(async () => {
+    try {
+      if (!isOnline) return;
+      const { scanLinkedInPublicJobs } = require('./linkedin-radar');
+      await scanLinkedInPublicJobs().catch(() => null);
+    } catch (rErr) {}
+  }, 35 * 60 * 1000);
 });
 
 // Start lightweight web UI for scanning QR code directly in the browser
