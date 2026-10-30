@@ -16,6 +16,7 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
 const nodemailer = require('nodemailer');
 const mongoose = require('mongoose');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
@@ -250,10 +251,12 @@ async function scanLinkedInPublicJobs() {
   try {
     browser = await puppeteer.launch({
       headless: 'new',
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || (puppeteer.executablePath ? puppeteer.executablePath() : undefined),
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
+        '--disable-gpu',
         '--disable-blink-features=AutomationControlled'
       ],
       defaultViewport: { width: 1280, height: 800 }
@@ -363,15 +366,75 @@ async function scanLinkedInPublicJobs() {
   console.log('\n======================================================');
   console.log(`🏁 LINKEDIN RADAR SCAN COMPLETE: ${newApplicationsCount} new applications dispatched.`);
   console.log('======================================================\n');
+  lastScanTime = new Date();
+  radarStatus = `Active (Last completed at ${lastScanTime.toLocaleTimeString()})`;
   return newApplicationsCount;
+}
+
+let lastScanTime = null;
+let radarStatus = 'Initializing LinkedIn Public Radar...';
+
+function startHealthServer() {
+  const port = process.env.PORT || 10000;
+  const server = http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>RizAgent LinkedIn Radar - Cloud 24/7</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <meta http-equiv="refresh" content="30">
+          <style>
+            body { background: #0b0f19; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+            .card { background: #131b2e; border: 1px solid #10b981; border-radius: 16px; padding: 32px; max-width: 480px; width: 100%; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; }
+            h1 { color: #10b981; font-size: 24px; margin-bottom: 8px; }
+            .status-badge { display: inline-block; background: rgba(16,185,129,0.15); color: #34d399; padding: 6px 16px; border-radius: 999px; font-weight: bold; font-size: 13px; border: 1px solid rgba(16,185,129,0.3); margin-bottom: 16px; }
+            p { color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 8px 0; }
+            .metric { display: flex; justify-content: space-between; background: #1e293b; padding: 12px 16px; border-radius: 8px; margin-top: 12px; font-size: 14px; }
+            .metric span { color: #cbd5e1; }
+            .metric strong { color: #38bdf8; }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <span class="status-badge">🟢 24/7 CLOUD ACTIVE</span>
+            <h1>LinkedIn Public Radar</h1>
+            <p>Scanning LinkedIn public jobs & dispatching direct applications with CV & Calendly.</p>
+            <div class="metric">
+              <span>Candidate:</span>
+              <strong>${CANDIDATE.name}</strong>
+            </div>
+            <div class="metric">
+              <span>Status:</span>
+              <strong>${radarStatus}</strong>
+            </div>
+            <div class="metric">
+              <span>Last Scan:</span>
+              <strong>${lastScanTime ? lastScanTime.toLocaleTimeString() : 'In Progress...'}</strong>
+            </div>
+            <div class="metric">
+              <span>Total Processed:</span>
+              <strong>${processedJobs.size} Jobs</strong>
+            </div>
+          </div>
+        </body>
+      </html>
+    `);
+  });
+
+  server.listen(port, () => {
+    console.log(`🌐 LinkedIn Radar HTTP Server active on port ${port} (Render Health Check Ready)`);
+  });
 }
 
 // If executed directly:
 if (require.main === module) {
-  const isDaemon = process.argv.includes('--daemon');
+  const isDaemon = process.argv.includes('--daemon') || Boolean(process.env.RENDER || process.env.PORT);
 
   if (isDaemon) {
-    console.log('🔄 LinkedIn Radar Daemon started (Interval: 30 minutes).');
+    console.log('🔄 LinkedIn Radar Cloud Daemon started (Interval: 30 minutes).');
+    startHealthServer();
     scanLinkedInPublicJobs().then(() => {
       setInterval(scanLinkedInPublicJobs, 30 * 60 * 1000);
     });

@@ -10,6 +10,7 @@
     "whatsapp:bot": "node scripts/whatsapp-bot.js",
     "linkedin:bot": "node scripts/linkedin-bot.js",
     "linkedin:radar": "node scripts/linkedin-radar.js",
+    "linkedin:radar:daemon": "node scripts/linkedin-radar.js --daemon",
     "test": "jest --runInBand --detectOpenHandles"
   },
   "dependencies": {

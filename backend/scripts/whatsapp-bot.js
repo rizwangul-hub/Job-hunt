@@ -54,7 +54,7 @@ const client = new Client({
   }),
   puppeteer: {
     headless: true,
-    executablePath: puppeteer.executablePath ? puppeteer.executablePath() : undefined,
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || (puppeteer.executablePath ? puppeteer.executablePath() : undefined),
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -171,23 +171,22 @@ client.on('ready', () => {
       }
     } catch (feedErr) {}
   }, 30 * 60 * 1000);
-
-  // FEATURE 6: LinkedIn Public Radar Mode (Scans every 35 mins with 0% account ban risk)
-  setTimeout(() => {
-    try {
-      const { scanLinkedInPublicJobs } = require('./linkedin-radar');
-      scanLinkedInPublicJobs().catch(() => null);
-    } catch (rErr) {}
-  }, 90000); // Initial run 90s after startup
-
-  setInterval(async () => {
-    try {
-      if (!isOnline) return;
-      const { scanLinkedInPublicJobs } = require('./linkedin-radar');
-      await scanLinkedInPublicJobs().catch(() => null);
-    } catch (rErr) {}
-  }, 35 * 60 * 1000);
 });
+
+// FEATURE 6: Autonomous LinkedIn Public Radar (Runs 24/7 on cloud even if WhatsApp is waiting for scan)
+setTimeout(() => {
+  try {
+    const { scanLinkedInPublicJobs } = require('./linkedin-radar');
+    scanLinkedInPublicJobs().catch(() => null);
+  } catch (rErr) {}
+}, 20000); // Initial scan 20s after boot
+
+setInterval(async () => {
+  try {
+    const { scanLinkedInPublicJobs } = require('./linkedin-radar');
+    await scanLinkedInPublicJobs().catch(() => null);
+  } catch (rErr) {}
+}, 35 * 60 * 1000);
 
 // Start lightweight web UI for scanning QR code directly in the browser
 const webPort = process.env.PORT || 8080;
