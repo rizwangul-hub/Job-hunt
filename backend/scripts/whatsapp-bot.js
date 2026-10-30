@@ -289,17 +289,20 @@ client.on('message_create', async (msg) => {
 
     let groupName = 'Direct Chat';
     let isChannel = false;
+    let chat = null;
     try {
-      const chat = await msg.getChat();
-      isChannel = (chat.id && chat.id.server === 'newsletter') || chat.isChannel || false;
-      groupName = chat.name || (isChannel ? 'WhatsApp Channel' : (chat.isGroup ? 'WhatsApp Group' : 'Direct Chat'));
+      chat = await msg.getChat();
+      if (chat) {
+        isChannel = (chat.id && chat.id.server === 'newsletter') || chat.isChannel || false;
+        groupName = chat.name || (isChannel ? 'WhatsApp Channel' : (chat.isGroup ? 'WhatsApp Group' : 'Direct Chat'));
+      }
     } catch (e) {}
 
     // Print live chat activity so you can see messages being processed
     console.log(`[💬 Seen in "${groupName}"]: "${text.substring(0, 60).replace(/\n/g, ' ')}..."`);
 
     // Check if this is an incoming recruiter response in a direct chat
-    const isDirectChat = (!chat.isGroup && !isChannel && !msg.fromMe);
+    const isDirectChat = chat && (!chat.isGroup && !isChannel && !msg.fromMe);
     const candidateAlertPhone = (process.env.CANDIDATE_WHATSAPP || '923255984244').replace(/[^\d]/g, '');
     const calendly = process.env.CANDIDATE_CALENDLY || 'https://calendly.com/rizwangul-dev';
     const candidateName = process.env.CANDIDATE_NAME || 'Rizwan Ullah';
@@ -518,9 +521,12 @@ Email: rizwangul535@gmail.com`;
 
     // 1. AUTO-EMAIL DISPATCH (Local SMTP fallback guarantees delivery with local CV)
     const emailMatch = text.match(/[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}/);
-    const targetEmail = data.recipientEmail || (emailMatch ? emailMatch[0] : null);
-
+    let targetEmail = data.recipientEmail || (emailMatch ? emailMatch[0] : null);
     if (targetEmail) {
+      targetEmail = targetEmail.replace(/[.,;:)]+$/, '').trim().toLowerCase();
+    }
+
+    if (targetEmail && !targetEmail.includes('example.com') && !targetEmail.includes('w3.org')) {
       if (mailTransporter) {
         try {
           await mailTransporter.sendMail({
@@ -558,8 +564,25 @@ Email: rizwangul535@gmail.com`;
     }
 
     // 2. AUTO-WHATSAPP OUTREACH DISPATCH
-    const phoneMatch = text.match(/(?:\+92|03\d{2})[-.\s]?\d{7}|\b\d{10,12}\b/);
-    const targetPhone = data.recipientPhone || job.contact || (phoneMatch ? phoneMatch[0] : null);
+    function extractPhone(raw) {
+      const patterns = [
+        /(?:\+?92|0092)[\s.-]?3\d{2}[\s.-]?\d{3}[\s.-]?\d{4}/,
+        /(?:\+?92|0092)[\s.-]?\d{3}[\s.-]?\d{7}/,
+        /03\d{2}[\s.-]?\d{3}[\s.-]?\d{4}/,
+        /03\d{9}/,
+        /(?:\+?92|0092)3\d{9}/,
+        /(?:whatsapp|contact|phone|call|wa\.me\/|tel:?)\s*[:=-]?\s*(\+?[\d\s.-]{10,16})/i,
+        /\b(?:\+?\d{1,3}[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b/
+      ];
+      for (const p of patterns) {
+        const m = raw.match(p);
+        if (m) return m[1] || m[0];
+      }
+      return null;
+    }
+
+    const matchedPhone = extractPhone(text);
+    const targetPhone = data.recipientPhone || job.contact || matchedPhone;
 
     if (targetPhone) {
       let cleanPhone = targetPhone.replace(/[^\d]/g, '');
