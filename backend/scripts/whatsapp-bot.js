@@ -104,14 +104,35 @@ client.on('auth_failure', (msg) => {
 client.on('ready', () => {
   isOnline = true;
   currentQrDataUrl = null;
-  botStatus = 'Online and watching groups in real time 24/7';
+  botStatus = 'Online and watching groups & channels in real time 24/7';
   console.log('\n======================================================');
   console.log('✅ RIZAGENT WHATSAPP AUTO-HUNTER IS ONLINE AND ACTIVE!');
-  console.log('👀 Listening to all your WhatsApp groups in real time...');
-  console.log('🎯 Automatic Target: MERN Stack | React | Node.js | React Native');
+  console.log('👀 Listening to all your WhatsApp groups & channels in real time...');
+  console.log('📢 Auto-monitoring subscribed WhatsApp Channels (Newsletters)...');
+  console.log('🎯 Target: Web Development | Full-Stack | Python | C++ | AI | Data Entry');
   console.log('📧 Recruiter with Email -> Auto-emails CV & Tailored Cover Letter');
-  console.log('💬 Recruiter with Phone -> Auto-messages WhatsApp Pitch & CV');
+  console.log('💬 Recruiter with Phone -> Auto-messages WhatsApp Pitch & CV Document');
   console.log('======================================================\n');
+
+  // Periodic WhatsApp Channel Scanner (every 45 seconds)
+  setInterval(async () => {
+    try {
+      if (!isOnline) return;
+      if (typeof client.getChannels === 'function') {
+        const channels = await client.getChannels();
+        for (const ch of channels) {
+          try {
+            const recentMsgs = await ch.fetchMessages({ limit: 4 });
+            for (const rm of recentMsgs) {
+              if (rm && (rm.body || rm.caption)) {
+                client.emit('message_create', rm);
+              }
+            }
+          } catch (mErr) {}
+        }
+      }
+    } catch (chErr) {}
+  }, 45000);
 });
 
 // Start lightweight web UI for scanning QR code directly in the browser
@@ -203,7 +224,7 @@ const processedMessageHashes = new Set();
 
 client.on('message_create', async (msg) => {
   try {
-    const text = msg.body || '';
+    const text = msg.body || msg.caption || '';
     if (!text || text.trim().length < 12) return;
 
     // Avoid reacting to bot's own outreach pitches
@@ -214,9 +235,11 @@ client.on('message_create', async (msg) => {
     if (isBotPitch) return;
 
     let groupName = 'Direct Chat';
+    let isChannel = false;
     try {
       const chat = await msg.getChat();
-      groupName = chat.name || (chat.isGroup ? 'WhatsApp Group' : 'Direct Chat');
+      isChannel = (chat.id && chat.id.server === 'newsletter') || chat.isChannel || false;
+      groupName = chat.name || (isChannel ? 'WhatsApp Channel' : (chat.isGroup ? 'WhatsApp Group' : 'Direct Chat'));
     } catch (e) {}
 
     // Print live chat activity so you can see messages being processed
@@ -442,11 +465,23 @@ Email: rizwangul535@gmail.com`;
 
           // Send CV attachment with document flag and brief pause for chat creation
           if (cvPath && fs.existsSync(cvPath)) {
-            await new Promise(r => setTimeout(r, 1500));
+            // Give WhatsApp Web 2.5s to register newly created chat
+            await new Promise(r => setTimeout(r, 2500));
             try {
+              // Ensure chat is initialized in WhatsApp store
+              try {
+                if (client.pupPage) {
+                  await client.pupPage.evaluate(async (id) => {
+                    const c = await window.WWebJS.getChat(id, { getAsModel: true });
+                    if (c && window.Store && window.Store.Cmd) {
+                      window.Store.Cmd.openChatAt(c);
+                    }
+                  }, recipientId);
+                }
+              } catch (openErr) {}
+
               const media = MessageMedia.fromFilePath(cvPath);
               media.filename = `${candidateName} - Full Stack Developer CV.pdf`;
-              media.mimetype = 'application/pdf';
               
               if (chat) {
                 await chat.sendMessage(media, { sendMediaAsDocument: true });
@@ -455,7 +490,15 @@ Email: rizwangul535@gmail.com`;
               }
               console.log(`📎 [WHATSAPP CV] Resume PDF successfully delivered to recruiter!`);
             } catch (mediaErr) {
-              console.log(`⚠️ CV attachment notice: ${mediaErr.message}`);
+              console.log(`⚠️ CV document notice: ${mediaErr.message}`);
+              // Fallback to sending media directly
+              try {
+                const mediaFallback = MessageMedia.fromFilePath(cvPath);
+                await client.sendMessage(recipientId, mediaFallback);
+                console.log(`📎 [WHATSAPP CV] Resume successfully delivered via direct media fallback!`);
+              } catch (fallbackErr) {
+                console.log(`ℹ️ Media fallback notice: ${fallbackErr.message}`);
+              }
             }
           }
         } catch (sendErr) {
