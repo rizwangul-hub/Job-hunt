@@ -127,6 +127,11 @@ export async function handleInboundJobWebhook(req: Request, res: Response): Prom
 
 I am writing to express my strong interest in this opportunity. I have solid computer proficiency, fast and accurate typing skills, practical experience managing data with MS Office & Excel, and a dedicated work ethic.
 
+Professional Profiles & Demos:
+- 🌐 Portfolio: ${user.portfolioUrl}
+- 💼 LinkedIn: ${user.linkedinUrl}
+- 💻 GitHub: ${user.githubUrl}
+
 I have attached my CV below for your review. I am available immediately and look forward to discussing how I can assist your team!
 
 Best regards,

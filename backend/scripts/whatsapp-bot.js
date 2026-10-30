@@ -330,6 +330,11 @@ client.on('message_create', async (msg) => {
 
 I am writing to express my strong interest in this opportunity. I have comprehensive computer proficiency, fast and accurate typing skills, practical experience managing data with MS Office & Excel, and a dedicated, detail-oriented work ethic.
 
+Professional Profiles & Demos:
+- 🌐 Portfolio: ${portfolio}
+- 💼 LinkedIn: ${linkedin}
+- 💻 GitHub: ${github}
+
 I have attached my CV below for your review. I am available immediately and look forward to discussing how I can assist your team!
 
 Best regards,
@@ -346,30 +351,32 @@ Email: rizwangul535@gmail.com`;
 
 I am a Software & Web Developer with strong algorithmic problem-solving abilities and practical experience in software development, REST APIs, and modern engineering practices.
 
-Links & Portfolio:
+Professional Profiles & Demos:
 - 🌐 Portfolio: ${portfolio}
-- 💻 GitHub: ${github}
 - 💼 LinkedIn: ${linkedin}
+- 💻 GitHub: ${github}
 
 I have attached my resume below for your review. Looking forward to discussing how I can contribute immediately!
 
 Best regards,
-${candidateName}`;
+${candidateName}
+Email: rizwangul535@gmail.com`;
     } else {
       // Web Development (1 to 5+ years, Full-Stack, MERN, React, Node, Frontend, Backend)
       pitch = `Salam! I saw your post regarding the ${title} position.
 
 I am a Full-Stack MERN & Web Developer with hands-on production experience designing, building, and deploying responsive web and software solutions using MongoDB, Express.js, React.js, Node.js, and modern REST APIs.
 
-Links & Demos:
+Professional Profiles & Demos:
 - 🌐 Portfolio: ${portfolio}
-- 💻 GitHub: ${github}
 - 💼 LinkedIn: ${linkedin}
+- 💻 GitHub: ${github}
 
 I have attached my resume below for your review. Looking forward to discussing how I can add immediate value to your team!
 
 Best regards,
-${candidateName}`;
+${candidateName}
+Email: rizwangul535@gmail.com`;
     }
 
     // 1. AUTO-EMAIL DISPATCH (Local SMTP fallback guarantees delivery with local CV)
