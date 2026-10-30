@@ -117,7 +117,12 @@ client.on('ready', () => {
   // Periodic WhatsApp Active Group & Channel Catch-Up Scanner (every 45 seconds)
   async function scanActiveGroups() {
     try {
-      console.log('🔄 Checking all active WhatsApp groups for recent jobs...');
+      if (!client.pupPage || client.pupPage.isClosed()) return;
+      const isStoreReady = await client.pupPage.evaluate(() => {
+        return Boolean(window.Store && window.Store.Chat && typeof window.Store.Chat.getModelsArray === 'function');
+      }).catch(() => false);
+      if (!isStoreReady) return;
+
       const chats = await client.getChats();
       let scannedCount = 0;
       for (const c of chats) {
@@ -125,23 +130,25 @@ client.on('ready', () => {
         if (isGrp) {
           scannedCount++;
           try {
-            const msgs = await c.fetchMessages({ limit: 8 });
+            const msgs = await c.fetchMessages({ limit: 12 });
             for (const rm of msgs) {
-              if (rm && (rm.body || rm.caption) && !rm.fromMe) {
+              if (rm && (rm.body || rm.caption)) {
                 await processIncomingMessage(rm, c);
               }
             }
           } catch (mErr) {}
         }
       }
-      console.log(`✅ Checked ${scannedCount} active groups & channels for jobs.`);
+      if (scannedCount > 0) {
+        console.log(`✅ Checked ${scannedCount} active groups & channels for jobs.`);
+      }
     } catch (chErr) {
       console.log('Group catch-up notice:', chErr.message);
     }
   }
 
-  // Scan immediately 6 seconds after connecting
-  setTimeout(scanActiveGroups, 6000);
+  // Scan 10 seconds after connecting to let chat store settle
+  setTimeout(scanActiveGroups, 10000);
   // Re-check groups every 45s so no job in any group is ever missed
   setInterval(scanActiveGroups, 45000);
 
@@ -292,11 +299,13 @@ async function processIncomingMessage(msg, preloadedChat = null) {
     const text = msg.body || msg.caption || '';
     if (!text || text.trim().length < 4) return;
 
-    // Avoid reacting to bot's own outreach pitches
+    // Avoid reacting to bot's own outreach pitches or alerts
     const isBotPitch = 
       text.includes('Salam! I saw your post') || 
       text.includes('rizwangul-hub') || 
-      text.includes('rizwanullah.dev');
+      text.includes('rizwanullah.dev') ||
+      text.includes('[AUTONOMOUS') ||
+      text.includes('[ALERT');
     if (isBotPitch) return;
 
     let groupName = 'Direct Chat';
@@ -843,9 +852,7 @@ client.on('message', async (msg) => {
 });
 
 client.on('message_create', async (msg) => {
-  if (!msg.fromMe) {
-    await processIncomingMessage(msg);
-  }
+  await processIncomingMessage(msg);
 });
 
 client.initialize();
