@@ -243,6 +243,22 @@ client.on('ready', () => {
       await scanLinkedInPublicJobs().catch(() => null);
     } catch (rErr) {}
   }, 35 * 60 * 1000);
+
+  // FEATURE 7: Facebook & Instagram Social Job Radar (Runs 3 mins after WhatsApp ready, then every 30 mins)
+  setTimeout(() => {
+    try {
+      const { scanSocialTechJobs } = require('./social-radar');
+      scanSocialTechJobs(client).catch(() => null);
+    } catch (sErr) {}
+  }, 180000);
+
+  setInterval(async () => {
+    try {
+      if (!isOnline) return;
+      const { scanSocialTechJobs } = require('./social-radar');
+      await scanSocialTechJobs(client).catch(() => null);
+    } catch (sErr) {}
+  }, 30 * 60 * 1000);
 });
 
 // Start lightweight web UI for scanning QR code directly in the browser

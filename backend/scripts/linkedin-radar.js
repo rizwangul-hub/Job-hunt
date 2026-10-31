@@ -262,15 +262,15 @@ async function scanLinkedInPublicJobs() {
       defaultViewport: { width: 1280, height: 800 }
     });
 
-    const searchPage = await browser.newPage();
-    await searchPage.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
-
     for (const query of SEARCH_QUERIES) {
       console.log(`\n🔎 [RADAR SEARCH] "${query.keyword}" in "${query.location}"...`);
 
       const searchUrl = `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=${encodeURIComponent(query.keyword)}&location=${encodeURIComponent(query.location)}`;
+      let searchPage = null;
 
       try {
+        searchPage = await browser.newPage();
+        await searchPage.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
         await searchPage.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 35000 });
         await jitter(2000, 3500);
 
@@ -362,6 +362,10 @@ async function scanLinkedInPublicJobs() {
         }
       } catch (qErr) {
         console.log(`⚠️ Search error for "${query.keyword}": ${qErr.message}`);
+      } finally {
+        if (searchPage && !searchPage.isClosed()) {
+          await searchPage.close().catch(() => null);
+        }
       }
     }
   } catch (err) {
