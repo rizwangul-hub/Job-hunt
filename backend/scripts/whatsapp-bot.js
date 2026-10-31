@@ -26,6 +26,8 @@ if (process.env.SMTP_USER && process.env.SMTP_PASS) {
 
 // Find CV file
 function findCV() {
+  const rootCv = path.join(__dirname, '../uploads/Resume.pdf');
+  if (fs.existsSync(rootCv)) return rootCv;
   const cvDir = path.join(__dirname, '../uploads/cvs');
   if (fs.existsSync(cvDir)) {
     const files = fs.readdirSync(cvDir).filter(f => f.endsWith('.pdf'));
@@ -33,8 +35,6 @@ function findCV() {
       return path.join(cvDir, files[0]);
     }
   }
-  const rootCv = path.join(__dirname, '../uploads/Resume.pdf');
-  if (fs.existsSync(rootCv)) return rootCv;
   return null;
 }
 
