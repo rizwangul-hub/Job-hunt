@@ -252,31 +252,18 @@ async function scanLinkedInPublicJobs() {
     browser = await puppeteer.launch({
       headless: 'new',
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || (puppeteer.executablePath ? puppeteer.executablePath() : undefined),
-      protocolTimeout: 120000,
+      protocolTimeout: 60000,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--single-process',
-        '--no-zygote',
         '--disable-blink-features=AutomationControlled'
       ],
       defaultViewport: { width: 1280, height: 800 }
     });
 
-    const page = await browser.newPage();
-    await page.setRequestInterception(true);
-    page.on('request', (req) => {
-      const type = req.resourceType();
-      if (['image', 'stylesheet', 'font', 'media'].includes(type)) {
-        req.abort();
-      } else {
-        req.continue();
-      }
-    });
-
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
+    const searchPage = await browser.newPage();
+    await searchPage.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
 
     for (const query of SEARCH_QUERIES) {
       console.log(`\n🔎 [RADAR SEARCH] "${query.keyword}" in "${query.location}"...`);
@@ -284,10 +271,10 @@ async function scanLinkedInPublicJobs() {
       const searchUrl = `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=${encodeURIComponent(query.keyword)}&location=${encodeURIComponent(query.location)}`;
 
       try {
-        await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 35000 });
-        await jitter(2500, 4000);
+        await searchPage.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 35000 });
+        await jitter(2000, 3500);
 
-        const jobCards = await page.evaluate(() => {
+        const jobCards = await searchPage.evaluate(() => {
           const cards = document.querySelectorAll('.jobs-search-results__list-item, .job-search-card, [data-job-id], li');
           const results = [];
           cards.forEach(c => {
@@ -315,11 +302,14 @@ async function scanLinkedInPublicJobs() {
           }
 
           console.log(`\n💼 Inspecting: "${job.title}" at "${job.company}"`);
+          let jobTab = null;
           try {
-            await page.goto(job.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-            await jitter(2000, 3500);
+            jobTab = await browser.newPage();
+            await jobTab.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
+            await jobTab.goto(job.url, { waitUntil: 'domcontentloaded', timeout: 25000 });
+            await jitter(1500, 2500);
 
-            const pageContent = await page.evaluate(() => {
+            const pageContent = await jobTab.evaluate(() => {
               const descEl = document.querySelector('.show-more-less-html__markup, .description__text, .jobs-description');
               return {
                 text: descEl ? descEl.innerText : (document.body ? document.body.innerText : '')
@@ -362,9 +352,13 @@ async function scanLinkedInPublicJobs() {
             }
           } catch (jobErr) {
             console.log(`⚠️ Notice on job inspection: ${jobErr.message}`);
+          } finally {
+            if (jobTab) {
+              await jobTab.close().catch(() => null);
+            }
           }
 
-          await jitter(2000, 4000);
+          await jitter(1500, 3000);
         }
       } catch (qErr) {
         console.log(`⚠️ Search error for "${query.keyword}": ${qErr.message}`);
@@ -436,6 +430,14 @@ function startHealthServer() {
     `);
   });
 
+  server.on('error', (e) => {
+    if (e.code === 'EADDRINUSE') {
+      console.log(`ℹ️ Notice: Port ${port} is occupied by another service. Skipping standalone health server.`);
+    } else {
+      console.log(`⚠️ HTTP Server notice: ${e.message}`);
+    }
+  });
+
   server.listen(port, '0.0.0.0', () => {
     console.log(`🌐 LinkedIn Radar HTTP Server active on 0.0.0.0:${port} (Cloud Health Check Ready)`);
   });
@@ -443,7 +445,7 @@ function startHealthServer() {
 
 // If executed directly:
 if (require.main === module) {
-  const isDaemon = process.argv.includes('--daemon') || Boolean(process.env.RENDER || process.env.PORT);
+  const isDaemon = process.argv.includes('--daemon') || Boolean(process.env.STANDALONE_RADAR === 'true');
 
   if (isDaemon) {
     console.log('🔄 LinkedIn Radar Cloud Daemon started (Interval: 30 minutes).');
