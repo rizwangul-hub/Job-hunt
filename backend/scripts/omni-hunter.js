@@ -5,9 +5,10 @@
  * Platforms Monitored 24/7:
  * 1. WhatsApp Groups & Chats (Real-time listener + Auto-Pitch + CV attachment)
  * 2. LinkedIn (Authenticated Easy Apply + Public Recruiter Radar)
- * 3. Facebook Tech Communities (Public Developer hiring groups & recruiter posts)
- * 4. Instagram Tech Feeds (#hiringdeveloper, #mernstack, #pakistantech)
- * 5. Web & RSS Developer Feeds
+ * 3. Indeed (Pakistan & Remote Developer Postings + Auto-Apply)
+ * 4. Facebook Tech Communities (Public Developer hiring groups & recruiter posts)
+ * 5. Instagram Tech Feeds (#hiringdeveloper, #mernstack, #pakistantech)
+ * 6. Web & RSS Developer Feeds
  * 
  * Unified Action on Every Job Found:
  * - Direct Recruiter Email with Resume.pdf attached via Gmail SMTP

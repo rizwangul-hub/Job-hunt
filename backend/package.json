@@ -12,6 +12,7 @@
     "linkedin:radar": "node scripts/linkedin-radar.js",
     "linkedin:radar:daemon": "node scripts/linkedin-radar.js --daemon",
     "social:radar": "node scripts/social-radar.js",
+    "indeed:hunter": "node scripts/indeed-hunter.js",
     "omni:hunter": "node scripts/omni-hunter.js",
     "system:health": "node scripts/system-health.js",
     "test": "jest --runInBand --detectOpenHandles"

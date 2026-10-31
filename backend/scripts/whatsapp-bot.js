@@ -259,6 +259,22 @@ client.on('ready', () => {
       await scanSocialTechJobs(client).catch(() => null);
     } catch (sErr) {}
   }, 30 * 60 * 1000);
+
+  // FEATURE 8: Indeed Autonomous Job Radar (Runs 4 mins after WhatsApp ready, then every 40 mins)
+  setTimeout(() => {
+    try {
+      const { scanIndeedJobs } = require('./indeed-hunter');
+      scanIndeedJobs(client).catch(() => null);
+    } catch (iErr) {}
+  }, 240000);
+
+  setInterval(async () => {
+    try {
+      if (!isOnline) return;
+      const { scanIndeedJobs } = require('./indeed-hunter');
+      await scanIndeedJobs(client).catch(() => null);
+    } catch (iErr) {}
+  }, 40 * 60 * 1000);
 });
 
 // Start lightweight web UI for scanning QR code directly in the browser

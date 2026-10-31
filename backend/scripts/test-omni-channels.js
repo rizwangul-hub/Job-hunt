@@ -17,6 +17,7 @@ const path = require('path');
 const nodemailer = require('nodemailer');
 const { executeUniversalApply, CANDIDATE } = require('./universal-applier');
 const { scanSocialTechJobs } = require('./social-radar');
+const { scanIndeedJobs } = require('./indeed-hunter');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const RESULTS = {
@@ -25,6 +26,7 @@ const RESULTS = {
   linkedInRadar: false,
   facebookRadar: false,
   instagramRadar: false,
+  indeedRadar: false,
   whatsAppParsing: false,
   smtpDeliveryWithCV: false,
   webhookTracking: false
@@ -138,9 +140,21 @@ async function runOmniChannelTest() {
   }
 
   // =====================================================================
-  // TEST 5: WHATSAPP GROUP & CHANNEL POST PARSING SIMULATION
+  // TEST 5: INDEED AUTONOMOUS RADAR & APPLIER
   // =====================================================================
-  console.log('\n👉 [TEST 4/6] Testing WhatsApp Group/Channel Job Post Processor...');
+  console.log('\n👉 [TEST 4/7] Testing Indeed Job Radar & Auto-Applier...');
+  try {
+    const indeedCount = await scanIndeedJobs();
+    console.log(`   ✅ Indeed Autonomous Radar: SUCCESS (Engine active, scanned Pakistan & Remote Indeed postings)`);
+    RESULTS.indeedRadar = true;
+  } catch (iErr) {
+    console.error(`   ❌ Indeed Radar Error: ${iErr.message}`);
+  }
+
+  // =====================================================================
+  // TEST 6: WHATSAPP GROUP & CHANNEL POST PARSING SIMULATION
+  // =====================================================================
+  console.log('\n👉 [TEST 5/7] Testing WhatsApp Group/Channel Job Post Processor...');
   try {
     const testPost = `
 🔥 URGENT HIRING: Senior MERN / Full Stack Developer
@@ -245,6 +259,7 @@ Or contact HR via WhatsApp: 03214567890
   console.log(`📡 LinkedIn Public Radar:            ${RESULTS.linkedInRadar ? '✅ PASS' : '⚠️ CHECK'}`);
   console.log(`📘 Facebook Tech Post Radar:         ${RESULTS.facebookRadar ? '✅ PASS' : '⚠️ CHECK'}`);
   console.log(`📷 Instagram Tech Hiring Radar:      ${RESULTS.instagramRadar ? '✅ PASS' : '⚠️ CHECK'}`);
+  console.log(`💼 Indeed Autonomous Radar:          ${RESULTS.indeedRadar ? '✅ PASS' : '⚠️ CHECK'}`);
   console.log(`📱 WhatsApp Post Ingestion & AI:     ${RESULTS.whatsAppParsing ? '✅ PASS' : '⚠️ CHECK'}`);
   console.log(`📎 Live Email Dispatch with CV:      ${RESULTS.smtpDeliveryWithCV ? '✅ PASS' : '❌ FAIL'}`);
   console.log(`🗄️ Central Webhook Sync:             ${RESULTS.webhookTracking ? '✅ PASS' : '⚠️ CHECK'}`);

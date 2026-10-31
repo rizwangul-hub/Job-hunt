@@ -48,6 +48,12 @@ backend/.wwebjs_auth/
 backend/.wwebjs_cache/
 
 # LinkedIn Bot Storage
+backend/.linkedin_auth/
+.linkedin_auth/
+
+# Radar Caches
+backend/.*_cache.json
+.*_cache.json
 .linkedin_auth/
 backend/.linkedin_auth/
 .linkedin_radar_cache.json
