@@ -36,3 +36,5 @@ services:
         sync: false
       - key: API_WEBHOOK_URL
         value: https://backend-rose-two-72.vercel.app/api/webhooks/jobs
+      - key: LINKEDIN_LI_AT
+        sync: false
