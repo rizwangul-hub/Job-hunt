@@ -318,17 +318,16 @@ function scheduleRadars() {
   }, 30 * 60 * 1000);
 }
 
-// In local development (Windows), start radars immediately
-if (process.platform === 'win32') {
+// Automatically activate autonomous radars across all platforms (Windows & Render Linux)
+setTimeout(() => {
+  console.log('🚀 Activating autonomous 24/7 background radars (LinkedIn, Social, Indeed)...');
   scheduleRadars();
-} else {
-  // On Render/Linux (512MB RAM limit), strictly wait for WhatsApp to be linked
-  // NEVER run extra background workers while waiting for QR scan
-  client.once('ready', () => {
-    console.log('✅ WhatsApp ready! Starting autonomous background radars...');
-    scheduleRadars();
-  });
-}
+}, 15000);
+
+client.once('ready', () => {
+  console.log('✅ WhatsApp ready! Real-time group listener and DM outreach active.');
+  scheduleRadars();
+});
 
 // Start lightweight web UI for scanning QR code directly in the browser
 const bootStartTime = Date.now();
@@ -1059,29 +1058,51 @@ Email: rizwangul535@gmail.com`;
             }
           }
 
-          // STEP D: If NO email found AND page contains an online application form, fill via existing Chromium instance
-          const hasFormIndicator = html.includes('<form') && (html.includes('type="file"') || html.includes('type="email"') || html.includes('name="email"'));
+          // STEP D: If NO direct email found, check for interactive forms or Google Forms
+          const isGoogleForm = targetApplyUrl.includes('docs.google.com/forms') || targetApplyUrl.includes('forms.gle') || html.includes('docs.google.com/forms');
+          const hasFormIndicator = isGoogleForm || html.includes('<form') || (html.includes('input') && (html.includes('type="file"') || html.includes('type="email"') || html.includes('name="email"')));
+
           if (discoveredEmails.length === 0 && hasFormIndicator && client.pupBrowser) {
-            console.log(`📝 [INTERACTIVE FORM DETECTED] Opening tab in existing browser to submit application...`);
+            console.log(`📝 [INTERACTIVE / GOOGLE FORM DETECTED] Opening tab in browser to auto-apply (${targetApplyUrl})...`);
             let formPage = null;
             try {
               formPage = await client.pupBrowser.newPage();
-              await formPage.goto(targetApplyUrl, { waitUntil: 'domcontentloaded', timeout: 25000 });
+              await formPage.goto(targetApplyUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+              await new Promise(r => setTimeout(r, 2000));
+
               await formPage.evaluate(({ name, email, phone, port, git, link }) => {
-                function setVal(sel, val) {
-                  const el = document.querySelector(sel);
-                  if (el) {
-                    el.value = val;
-                    el.dispatchEvent(new Event('input', { bubbles: true }));
-                    el.dispatchEvent(new Event('change', { bubbles: true }));
-                  }
+                function setVal(el, val) {
+                  if (!el) return;
+                  el.focus();
+                  el.value = val;
+                  el.dispatchEvent(new Event('input', { bubbles: true }));
+                  el.dispatchEvent(new Event('change', { bubbles: true }));
                 }
-                setVal('input[name*="name" i], input[id*="name" i], input[placeholder*="name" i]', name);
-                setVal('input[type="email"], input[name*="email" i], input[id*="email" i]', email);
-                setVal('input[type="tel"], input[name*="phone" i], input[id*="phone" i]', phone);
-                setVal('input[name*="portfolio" i], input[id*="portfolio" i]', port);
-                setVal('input[name*="github" i], input[id*="github" i]', git);
-                setVal('input[name*="linkedin" i], input[id*="linkedin" i]', link);
+
+                // Generic inputs & Google Form fields
+                const inputs = Array.from(document.querySelectorAll('input, textarea'));
+                inputs.forEach(inp => {
+                  const label = (
+                    (inp.getAttribute('aria-label') || '') + ' ' +
+                    (inp.getAttribute('placeholder') || '') + ' ' +
+                    (inp.name || '') + ' ' +
+                    (inp.id || '')
+                  ).toLowerCase();
+
+                  if (label.includes('name') && !label.includes('company')) {
+                    setVal(inp, name);
+                  } else if (label.includes('email') || inp.type === 'email') {
+                    setVal(inp, email);
+                  } else if (label.includes('phone') || label.includes('mobile') || label.includes('contact') || label.includes('whatsapp') || inp.type === 'tel') {
+                    setVal(inp, phone);
+                  } else if (label.includes('portfolio') || label.includes('website') || label.includes('demo')) {
+                    setVal(inp, port);
+                  } else if (label.includes('github') || label.includes('git')) {
+                    setVal(inp, git);
+                  } else if (label.includes('linkedin')) {
+                    setVal(inp, link);
+                  }
+                });
               }, {
                 name: candidateName,
                 email: process.env.SMTP_USER || 'rizwangul535@gmail.com',
@@ -1095,17 +1116,36 @@ Email: rizwangul535@gmail.com`;
                 const fileInput = await formPage.$('input[type="file"]');
                 if (fileInput) {
                   await fileInput.uploadFile(cvPath);
-                  console.log(`📎 [FORM CV UPLOADED] Resume.pdf attached to career form!`);
+                  console.log(`📎 [FORM CV UPLOADED] Resume.pdf attached to application form!`);
                 }
               }
 
-              const submitBtn = await formPage.$('button[type="submit"], input[type="submit"], button.submit, form button');
+              const submitBtn = await formPage.$(
+                'button[type="submit"], input[type="submit"], div[role="button"][aria-label*="Submit" i], span:contains("Submit"), button.submit, form button'
+              );
               if (submitBtn) {
                 await Promise.all([
                   formPage.waitForNavigation({ timeout: 10000 }).catch(() => {}),
                   submitBtn.click()
                 ]);
                 console.log(`🚀 [FORM SUBMITTED] Application successfully submitted on ${targetApplyUrl}!`);
+              } else {
+                console.log(`✅ [FORM AUTO-FILLED] Candidate details filled on ${targetApplyUrl}!`);
+              }
+
+              // Send candidate confirmation alert
+              if (candidateAlertPhone) {
+                try {
+                  const alertMsg = `🎉 *[DIRECT LINK / FORM APPLICATION SUBMITTED]*\n\n` +
+                    `💼 *Position:* ${resolvedTitle}\n` +
+                    `🏢 *Company:* ${resolvedCompany}\n` +
+                    `🌐 *Application Link:* ${targetApplyUrl}\n` +
+                    `📝 *Status:* Form auto-filled with candidate credentials & Resume.pdf\n` +
+                    `📞 *Your Contact:* +92 325 5984244\n` +
+                    `⏰ *Time:* ${new Date().toLocaleTimeString()}\n\n` +
+                    `_RizAgent autonomously applied to the link for you!_`;
+                  await client.sendMessage(`${candidateAlertPhone}@c.us`, alertMsg);
+                } catch (e) {}
               }
             } catch (formErr) {
               console.log(`ℹ️ Form autofill notice: ${formErr.message}`);

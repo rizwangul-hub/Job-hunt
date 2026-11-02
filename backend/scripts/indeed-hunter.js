@@ -43,11 +43,23 @@ function saveCache() {
 }
 
 const INDEED_QUERIES = [
+  // Pakistan (Onsite & Remote)
   { keyword: 'Full Stack Developer', location: 'Pakistan' },
   { keyword: 'MERN Stack Developer', location: 'Pakistan' },
+  { keyword: 'Software Developer', location: 'Pakistan' },
   { keyword: 'React Developer', location: 'Pakistan' },
-  { keyword: 'Python Developer', location: 'Remote' },
-  { keyword: 'Web Developer', location: 'Pakistan' }
+  { keyword: 'Node.js Developer', location: 'Pakistan' },
+  { keyword: 'Web Developer', location: 'Pakistan' },
+  { keyword: 'Python Developer', location: 'Pakistan' },
+  { keyword: 'Data Entry Operator', location: 'Pakistan' },
+  // Worldwide (Strictly Remote)
+  { keyword: 'Full Stack Developer', location: 'Remote' },
+  { keyword: 'MERN Stack Developer', location: 'Remote' },
+  { keyword: 'React Developer', location: 'Remote' },
+  { keyword: 'Node.js Developer', location: 'Remote' },
+  { keyword: 'Frontend Developer', location: 'Remote' },
+  { keyword: 'Backend Developer', location: 'Remote' },
+  { keyword: 'Python Developer', location: 'Remote' }
 ];
 
 const delay = (ms) => new Promise(res => setTimeout(res, ms));
@@ -72,7 +84,7 @@ function extractEmails(text) {
     const low = e.toLowerCase();
     return !low.endsWith('.png') && !low.endsWith('.jpg') && !low.endsWith('.svg') &&
            !low.includes('example.com') && !low.includes('indeed.com') && !low.includes('sentry.io') &&
-           !low.includes('w3.org') && !low.includes('schema.org');
+           !low.includes('w3.org') && !low.includes('schema.org') && !low.includes('duckduckgo');
   });
 }
 
@@ -86,175 +98,58 @@ function extractPhoneNumber(text) {
   return null;
 }
 
-// Scan Indeed public search streams & Google Indexed Indeed Postings
+// Scan Indeed public search streams (Universal Ultra-Lightweight HTTP Mode, 0MB Overhead)
 async function scanIndeedJobs(whatsappClient = null) {
   console.log('\n======================================================');
   console.log('💼 STARTING INDEED AUTONOMOUS JOB RADAR & APPLIER');
   console.log(`   Candidate: ${CANDIDATE.name} (${CANDIDATE.email})`);
   console.log(`   CV Document: Resume.pdf`);
-  console.log(`   Target Locations: Pakistan & Remote`);
+  console.log(`   Scope: Pakistan (Onsite & Remote) + Worldwide (Remote)`);
   console.log('======================================================\n');
 
-  let browser = null;
   let applicationsDispatched = 0;
 
-  // On Linux/Render (512MB RAM), never launch a second Chromium instance to prevent OOM
-  if (process.platform === 'linux') {
-    console.log('ℹ️ [CLOUD RESOURCE GUARD] Running Indeed Radar in lightweight HTTP mode to keep container under 200MB RAM.');
-    for (const query of INDEED_QUERIES) {
-      console.log(`🔎 [INDEED SCAN] "${query.keyword}" in "${query.location}"...`);
-      try {
-        const searchUrl = `https://html.duckduckgo.com/html/?q=site:pk.indeed.com+("${encodeURIComponent(query.keyword)}")+pakistan+("careers"+OR+"hr"+OR+"@" )`;
-        const res = await fetch(searchUrl, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-        });
-        if (!res.ok) continue;
-        const html = await res.text();
-        const snippetMatches = html.match(/<a class="result__snippet[^>]*>([\s\S]*?)<\/a>/gi) || [];
-        for (const snip of snippetMatches) {
-          const plain = snip.replace(/<[^>]+>/g, ' ');
-          const emails = extractEmails(plain);
-          const phone = extractPhoneNumber(plain);
-          if (emails.length > 0 || phone) {
-            const result = await executeUniversalApply({
-              title: query.keyword,
-              company: 'Indeed Tech Recruiter',
-              description: plain,
-              recruiterEmail: emails[0] || null,
-              recruiterPhone: phone || null,
-              applyUrl: 'https://pk.indeed.com'
-            }, whatsappClient);
-            if (result.emailSent || result.whatsappSent) applicationsDispatched++;
-          }
-        }
-      } catch (err) {}
-    }
-    console.log(`\n======================================================`);
-    console.log(`🏁 INDEED RADAR SCAN COMPLETE: ${applicationsDispatched} new applications dispatched.`);
-    console.log('======================================================\n');
-    return applicationsDispatched;
-  }
-
-  try {
-    browser = await puppeteer.launch({
-      headless: 'new',
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || (puppeteer.executablePath ? puppeteer.executablePath() : undefined),
-      protocolTimeout: 60000,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-blink-features=AutomationControlled'
-      ],
-      defaultViewport: { width: 1280, height: 800 }
-    });
-
-    for (const query of INDEED_QUERIES) {
-      console.log(`🔎 [INDEED SCAN] "${query.keyword}" in "${query.location}"...`);
-
-      // Search Google indexed Indeed listings to bypass Cloudflare security challenges cleanly
-      const searchUrl = `https://www.google.com/search?q=site:pk.indeed.com+("${encodeURIComponent(query.keyword)}")+pakistan+("careers"+OR+"hr"+OR+"@" )`;
-      let page = null;
-
-      try {
-        page = await browser.newPage();
-        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
-
-        await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-        await delay(2000);
-
-        const jobItems = await page.evaluate(() => {
-          const list = [];
-          const blocks = document.querySelectorAll('div.g, div[data-hveid]');
-          blocks.forEach(b => {
-            const titleEl = b.querySelector('h3');
-            const snippetEl = b.querySelector('div[data-sncf], div.VwiC3b, div[style*="-webkit-line-clamp"]');
-            const linkEl = b.querySelector('a');
-            if (titleEl && linkEl) {
-              list.push({
-                title: titleEl.innerText || '',
-                snippet: snippetEl ? snippetEl.innerText : '',
-                url: linkEl.href || ''
-              });
-            }
-          });
-          return list;
-        });
-
-        console.log(`📋 Discovered ${jobItems.length} Indeed listings for "${query.keyword}".`);
-
-        for (const job of jobItems) {
-          const combined = `${job.title} ${job.snippet}`;
-          const lower = combined.toLowerCase();
-
-          // Ensure it's a developer role
-          const isDevRole = lower.includes('developer') || lower.includes('engineer') || lower.includes('mern') || lower.includes('react') || lower.includes('stack') || lower.includes('python');
-          if (!isDevRole) continue;
-
-          const jobKey = job.title.trim().toLowerCase();
-          if (processedIndeedJobs.has(jobKey) || (job.url && processedIndeedJobs.has(job.url))) {
-            continue;
-          }
-
-          // Extract contacts
-          const emails = extractEmails(combined);
-          const phone = extractPhoneNumber(combined);
-
-          // Extract company name if possible from title (e.g. "Software Engineer - CompanyName - Indeed")
-          let company = 'Indeed Hiring Company';
-          const parts = job.title.split('-').map(s => s.trim());
-          if (parts.length >= 2 && !parts[1].toLowerCase().includes('indeed')) {
-            company = parts[1];
-          }
-
-          if (emails.length > 0 || phone) {
-            console.log(`\n💼 [INDEED OPPORTUNITY]: "${job.title}" at "${company}"`);
-            console.log(`   Recruiter Email: ${emails[0] || 'N/A'}`);
-            console.log(`   Recruiter Phone: ${phone || 'N/A'}`);
-
-            const applied = await executeUniversalApply({
-              title: job.title,
-              company: company,
-              description: job.snippet,
-              recruiterEmail: emails[0] || null,
-              recruiterPhone: phone || null,
-              applyUrl: job.url,
-              channel: 'indeed',
-              whatsappClient: whatsappClient
-            });
-
-            processedIndeedJobs.add(jobKey);
-            if (job.url) processedIndeedJobs.add(job.url);
-            saveCache();
-
-            if (applied) {
-              applicationsDispatched++;
-              await delay(2500);
-            }
-          } else {
-            // Store as tracked opportunity
-            processedIndeedJobs.add(jobKey);
-            if (job.url) processedIndeedJobs.add(job.url);
-            saveCache();
-          }
-        }
-      } catch (qErr) {
-        console.log(`⚠️ Search error for Indeed query "${query.keyword}": ${qErr.message}`);
-      } finally {
-        if (page && !page.isClosed()) {
-          await page.close().catch(() => null);
+  for (const query of INDEED_QUERIES) {
+    console.log(`🔎 [INDEED SCAN] "${query.keyword}" in "${query.location}"...`);
+    try {
+      const locFilter = query.location.toLowerCase() === 'remote' ? 'remote' : 'pakistan';
+      const searchUrl = `https://html.duckduckgo.com/html/?q=site:pk.indeed.com+("${encodeURIComponent(query.keyword)}")+${locFilter}+("careers"+OR+"hr"+OR+"@" )`;
+      const res = await fetch(searchUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+        },
+        signal: AbortSignal.timeout(15000)
+      });
+      if (!res.ok) continue;
+      const html = await res.text();
+      const snippetMatches = html.match(/<a class="result__snippet[^>]*>([\s\S]*?)<\/a>/gi) || [];
+      for (const snip of snippetMatches) {
+        const plain = snip.replace(/<[^>]+>/g, ' ');
+        const emails = extractEmails(plain);
+        const phone = extractPhoneNumber(plain);
+        if (emails.length > 0 || phone) {
+          const recEmail = emails[0] || null;
+          console.log(`🎯 Recruiter Contact Found on Indeed: ${recEmail || phone} for "${query.keyword}"`);
+          const result = await executeUniversalApply({
+            title: query.keyword,
+            company: 'Indeed Tech Recruiter',
+            description: plain,
+            recruiterEmail: recEmail,
+            recruiterPhone: phone || null,
+            applyUrl: 'https://pk.indeed.com',
+            channel: 'indeed'
+          }, whatsappClient);
+          if (result && (result.emailSent || result.whatsappSent)) applicationsDispatched++;
         }
       }
-
-      await delay(1500);
+    } catch (err) {
+      console.log(`ℹ️ Notice for Indeed "${query.keyword}": ${err.message}`);
     }
-  } catch (err) {
-    console.error('❌ Indeed Radar Error:', err.message);
-  } finally {
-    if (browser) await browser.close().catch(() => null);
+    await delay(1500);
   }
 
-  console.log('\n======================================================');
+  console.log(`\n======================================================`);
   console.log(`🏁 INDEED RADAR SCAN COMPLETE: ${applicationsDispatched} new applications dispatched.`);
   console.log('======================================================\n');
   return applicationsDispatched;

@@ -44,12 +44,15 @@ const TARGET_KEYWORDS = [
   'web developer', 'python', 'javascript', 'nextjs', 'data entry', 'computer operator'
 ];
 
-// Target public search queries for Facebook & Instagram tech hiring
+// Target public search queries for Facebook & Instagram tech hiring (Pakistan Onsite/Remote & Worldwide Remote)
 const SOCIAL_TARGETS = [
-  { platform: 'facebook', query: 'hiring mern stack developer pakistan', url: 'https://www.google.com/search?q=site:facebook.com+"hiring"+("mern"+"developer"+OR+"full+stack"+OR+"react")+"pakistan"+gmail.com+OR+careers+OR+hr' },
-  { platform: 'facebook', query: 'hiring react developer pakistan', url: 'https://www.google.com/search?q=site:facebook.com+"we+are+hiring"+("software+engineer"+OR+"web+developer")+pakistan+email' },
-  { platform: 'instagram', query: 'instagram hiring developer pakistan', url: 'https://www.google.com/search?q=site:instagram.com+"hiring"+("mern"+OR+"react"+OR+"fullstack"+OR+"python")+pakistan+("careers"+OR+"hr"+OR+"@" )' },
-  { platform: 'social', query: 'remote full stack developer hiring email', url: 'https://www.google.com/search?q=("apply+at"+OR+"send+cv+to"+OR+"send+resume+to")+("mern+developer"+OR+"full+stack+developer"+OR+"react")+pakistan' }
+  { platform: 'facebook', query: 'hiring mern stack developer pakistan email', url: 'https://www.google.com/search?q=site:facebook.com+"hiring"+("mern"+"developer"+OR+"full+stack"+OR+"react")+"pakistan"+gmail.com+OR+careers+OR+hr' },
+  { platform: 'facebook', query: 'hiring software developer lahore karachi islamabad email', url: 'https://www.google.com/search?q=site:facebook.com+"we+are+hiring"+("software+engineer"+OR+"web+developer")+(lahore+OR+islamabad+OR+karachi)+email' },
+  { platform: 'facebook', query: 'hiring full stack developer worldwide remote send cv', url: 'https://www.google.com/search?q=site:facebook.com+"hiring"+("full+stack"+OR+"mern"+OR+"react")+"remote"+send+cv' },
+  { platform: 'instagram', query: 'instagram hiring developer pakistan careers', url: 'https://www.google.com/search?q=site:instagram.com+"hiring"+("mern"+OR+"react"+OR+"fullstack"+OR+"python")+pakistan+("careers"+OR+"hr"+OR+"@" )' },
+  { platform: 'instagram', query: 'instagram hiring remote software engineer email', url: 'https://www.google.com/search?q=site:instagram.com+"hiring"+("remote"+OR+"worldwide")+("developer"+OR+"engineer")+email' },
+  { platform: 'social', query: 'remote full stack developer hiring email send resume', url: 'https://www.google.com/search?q=("apply+at"+OR+"send+cv+to"+OR+"send+resume+to")+("mern+developer"+OR+"full+stack+developer"+OR+"react")+"remote"' },
+  { platform: 'social', query: 'python developer remote hiring email', url: 'https://www.google.com/search?q=("apply+at"+OR+"send+cv+to")+("python+developer"+OR+"backend+developer")+"remote"' }
 ];
 
 const delay = (ms) => new Promise(res => setTimeout(res, ms));
@@ -74,166 +77,61 @@ function extractEmails(text) {
     const low = e.toLowerCase();
     return !low.endsWith('.png') && !low.endsWith('.jpg') && !low.endsWith('.svg') &&
            !low.includes('example.com') && !low.includes('google.com') && !low.includes('w3.org') &&
-           !low.includes('sentry.io') && !low.includes('schema.org');
+           !low.includes('sentry.io') && !low.includes('schema.org') && !low.includes('duckduckgo');
   });
 }
 
-// Scrape social hiring radar
+// Scrape social hiring radar (Universal Ultra-Lightweight HTTP Mode, 0MB Overhead)
 async function scanSocialTechJobs(whatsappClient = null) {
   console.log('\n======================================================');
   console.log('🌐 STARTING SOCIAL JOB RADAR (FACEBOOK, INSTAGRAM & SOCIAL)');
   console.log(`   Candidate: ${CANDIDATE.name} (${CANDIDATE.email})`);
+  console.log(`   Scope: Pakistan (Onsite & Remote) + Worldwide (Remote)`);
   console.log(`   Auto-Apply Mode: Instant CV & Pitch Dispatch`);
   console.log('======================================================\n');
 
-  let browser = null;
   let newAppliedCount = 0;
 
-  // On Linux/Render (512MB RAM), never launch a second Chromium instance to prevent OOM
-  if (process.platform === 'linux') {
-    console.log('ℹ️ [CLOUD RESOURCE GUARD] Running Social Radar in lightweight HTTP mode to keep container under 200MB RAM.');
-    for (const target of SOCIAL_TARGETS) {
-      console.log(`🔎 [SCANNING] ${target.platform.toUpperCase()}: "${target.query}"...`);
-      try {
-        const duckUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(target.query + ' email OR hr')}`;
-        const res = await fetch(duckUrl, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-        });
-        if (!res.ok) continue;
-        const html = await res.text();
-        const snippetMatches = html.match(/<a class="result__snippet[^>]*>([\s\S]*?)<\/a>/gi) || [];
-        for (const snip of snippetMatches) {
-          const plain = snip.replace(/<[^>]+>/g, ' ');
-          const emailRegex = /[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}/g;
-          const emails = (plain.match(emailRegex) || []).filter(e => !e.includes('duckduckgo') && !e.includes('example.com'));
-          const phone = extractPhoneNumber(plain);
-          if (emails.length > 0 || phone) {
-            const result = await executeUniversalApply({
-              title: 'Full Stack Developer',
-              company: `${target.platform.toUpperCase()} Recruiter Post`,
-              description: plain,
-              recruiterEmail: emails[0] || null,
-              recruiterPhone: phone || null,
-              applyUrl: `https://${target.platform}.com`
-            }, whatsappClient);
-            if (result.emailSent || result.whatsappSent) newAppliedCount++;
-          }
-        }
-      } catch (err) {}
-    }
-    console.log(`\n======================================================`);
-    console.log(`🏁 SOCIAL RADAR SCAN COMPLETE: ${newAppliedCount} new applications dispatched.`);
-    console.log('======================================================\n');
-    return newAppliedCount;
-  }
-
-  try {
-    browser = await puppeteer.launch({
-      headless: 'new',
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || (puppeteer.executablePath ? puppeteer.executablePath() : undefined),
-      protocolTimeout: 60000,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-blink-features=AutomationControlled'
-      ],
-      defaultViewport: { width: 1280, height: 800 }
-    });
-
-    for (const target of SOCIAL_TARGETS) {
-      console.log(`🔎 [SCANNING] ${target.platform.toUpperCase()}: "${target.query}"...`);
-      let page = null;
-      try {
-        page = await browser.newPage();
-        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
-        
-        await page.goto(target.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-        await delay(2000);
-
-        // Extract search snippets & titles
-        const results = await page.evaluate(() => {
-          const items = [];
-          const blocks = document.querySelectorAll('div.g, div[data-hveid]');
-          blocks.forEach(b => {
-            const titleEl = b.querySelector('h3');
-            const snippetEl = b.querySelector('div[data-sncf], div.VwiC3b, div[style*="-webkit-line-clamp"]');
-            const linkEl = b.querySelector('a');
-            if (titleEl && linkEl) {
-              items.push({
-                title: titleEl.innerText || '',
-                snippet: snippetEl ? snippetEl.innerText : '',
-                url: linkEl.href || ''
-              });
-            }
-          });
-          return items;
-        });
-
-        console.log(`📋 Found ${results.length} public leads on ${target.platform.toUpperCase()}.`);
-
-        for (const item of results) {
-          const combinedText = `${item.title} ${item.snippet}`;
-          const lower = combinedText.toLowerCase();
-
-          // Check if it matches developer role keywords
-          const isTechJob = TARGET_KEYWORDS.some(kw => lower.includes(kw));
-          if (!isTechJob) continue;
-
-          // Check if already processed
-          const postKey = item.title.trim().toLowerCase();
-          if (processedPosts.has(postKey) || (item.url && processedPosts.has(item.url))) {
-            continue;
-          }
-
-          // Extract contacts
-          const emails = extractEmails(combinedText);
-          const phone = extractPhoneNumber(combinedText);
-
-          if (emails.length > 0 || phone) {
-            console.log(`\n💼 [OPPORTUNITY IDENTIFIED]: "${item.title}"`);
-            console.log(`   Source: ${target.platform.toUpperCase()} (${item.url})`);
-            console.log(`   Recruiter Email: ${emails[0] || 'N/A'}`);
-            console.log(`   Recruiter Phone: ${phone || 'N/A'}`);
-
-            const applied = await executeUniversalApply({
-              title: item.title,
-              company: target.platform === 'facebook' ? 'Facebook Tech Recruiter' : 'Instagram Tech Recruiter',
-              description: item.snippet,
-              recruiterEmail: emails[0] || null,
-              recruiterPhone: phone || null,
-              applyUrl: item.url,
-              channel: target.platform,
-              whatsappClient: whatsappClient
-            });
-
-            processedPosts.add(postKey);
-            if (item.url) processedPosts.add(item.url);
-            saveCache();
-
-            if (applied) {
-              newAppliedCount++;
-              await delay(3000);
-            }
-          }
-        }
-      } catch (err) {
-        console.log(`⚠️ Search error on ${target.platform}: ${err.message}`);
-      } finally {
-        if (page && !page.isClosed()) {
-          await page.close().catch(() => null);
+  for (const target of SOCIAL_TARGETS) {
+    console.log(`🔎 [SCANNING] ${target.platform.toUpperCase()}: "${target.query}"...`);
+    try {
+      const duckUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(target.query + ' email OR hr')}`;
+      const res = await fetch(duckUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+        },
+        signal: AbortSignal.timeout(15000)
+      });
+      if (!res.ok) continue;
+      const html = await res.text();
+      const snippetMatches = html.match(/<a class="result__snippet[^>]*>([\s\S]*?)<\/a>/gi) || [];
+      for (const snip of snippetMatches) {
+        const plain = snip.replace(/<[^>]+>/g, ' ');
+        const emails = extractEmails(plain);
+        const phone = extractPhoneNumber(plain);
+        if (emails.length > 0 || phone) {
+          const recEmail = emails[0] || null;
+          console.log(`🎯 Recruiter Contact Found on ${target.platform.toUpperCase()}: ${recEmail || phone}`);
+          const result = await executeUniversalApply({
+            title: 'Full Stack Developer',
+            company: `${target.platform.toUpperCase()} Recruiter Post`,
+            description: plain,
+            recruiterEmail: recEmail,
+            recruiterPhone: phone || null,
+            applyUrl: `https://${target.platform}.com`,
+            channel: target.platform
+          }, whatsappClient);
+          if (result && (result.emailSent || result.whatsappSent)) newAppliedCount++;
         }
       }
+    } catch (err) {
+      console.log(`ℹ️ Notice for ${target.platform}: ${err.message}`);
     }
-  } catch (mainErr) {
-    console.error('❌ Social Radar Error:', mainErr.message);
-  } finally {
-    if (browser) {
-      await browser.close().catch(() => null);
-    }
+    await delay(1500);
   }
 
-  console.log('\n======================================================');
+  console.log(`\n======================================================`);
   console.log(`🏁 SOCIAL RADAR SCAN COMPLETE: ${newAppliedCount} new applications dispatched.`);
   console.log('======================================================\n');
   return newAppliedCount;
