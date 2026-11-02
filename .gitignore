@@ -54,6 +54,8 @@ backend/.linkedin_auth/
 # Radar Caches
 backend/.*_cache.json
 .*_cache.json
+backend/.*_registry.json
+.*_registry.json
 .linkedin_auth/
 backend/.linkedin_auth/
 .linkedin_radar_cache.json

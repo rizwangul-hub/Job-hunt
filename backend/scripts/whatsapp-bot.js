@@ -227,55 +227,60 @@ client.on('ready', () => {
       }
     } catch (feedErr) {}
   }, 30 * 60 * 1000);
-
-  // FEATURE 6: Autonomous LinkedIn Public Radar (Runs 2 mins after WhatsApp ready, then every 35 mins)
-  setTimeout(() => {
-    try {
-      const { scanLinkedInPublicJobs } = require('./linkedin-radar');
-      scanLinkedInPublicJobs().catch(() => null);
-    } catch (rErr) {}
-  }, 120000);
-
-  setInterval(async () => {
-    try {
-      if (!isOnline) return;
-      const { scanLinkedInPublicJobs } = require('./linkedin-radar');
-      await scanLinkedInPublicJobs().catch(() => null);
-    } catch (rErr) {}
-  }, 35 * 60 * 1000);
-
-  // FEATURE 7: Facebook & Instagram Social Job Radar (Runs 3 mins after WhatsApp ready, then every 30 mins)
-  setTimeout(() => {
-    try {
-      const { scanSocialTechJobs } = require('./social-radar');
-      scanSocialTechJobs(client).catch(() => null);
-    } catch (sErr) {}
-  }, 180000);
-
-  setInterval(async () => {
-    try {
-      if (!isOnline) return;
-      const { scanSocialTechJobs } = require('./social-radar');
-      await scanSocialTechJobs(client).catch(() => null);
-    } catch (sErr) {}
-  }, 30 * 60 * 1000);
-
-  // FEATURE 8: Indeed Autonomous Job Radar (Runs 4 mins after WhatsApp ready, then every 40 mins)
-  setTimeout(() => {
-    try {
-      const { scanIndeedJobs } = require('./indeed-hunter');
-      scanIndeedJobs(client).catch(() => null);
-    } catch (iErr) {}
-  }, 240000);
-
-  setInterval(async () => {
-    try {
-      if (!isOnline) return;
-      const { scanIndeedJobs } = require('./indeed-hunter');
-      await scanIndeedJobs(client).catch(() => null);
-    } catch (iErr) {}
-  }, 40 * 60 * 1000);
 });
+
+// =====================================================================
+// AUTONOMOUS OMNI-PLATFORM RADAR DAEMON (LinkedIn, Social, Indeed)
+// Runs 24/7 independently of WhatsApp status (Email & Easy Apply always active!)
+// =====================================================================
+function getLiveWhatsAppClient() {
+  return isOnline ? client : null;
+}
+
+// 1. LinkedIn Public Radar (Runs at boot + 60s, then every 35 mins)
+setTimeout(() => {
+  try {
+    const { scanLinkedInPublicJobs } = require('./linkedin-radar');
+    scanLinkedInPublicJobs().catch(() => null);
+  } catch (rErr) {}
+}, 60000);
+
+setInterval(async () => {
+  try {
+    const { scanLinkedInPublicJobs } = require('./linkedin-radar');
+    await scanLinkedInPublicJobs().catch(() => null);
+  } catch (rErr) {}
+}, 35 * 60 * 1000);
+
+// 2. Facebook & Instagram Social Radar (Runs at boot + 90s, then every 30 mins)
+setTimeout(() => {
+  try {
+    const { scanSocialTechJobs } = require('./social-radar');
+    scanSocialTechJobs(getLiveWhatsAppClient()).catch(() => null);
+  } catch (sErr) {}
+}, 90000);
+
+setInterval(async () => {
+  try {
+    const { scanSocialTechJobs } = require('./social-radar');
+    await scanSocialTechJobs(getLiveWhatsAppClient()).catch(() => null);
+  } catch (sErr) {}
+}, 30 * 60 * 1000);
+
+// 3. Indeed Autonomous Radar (Runs at boot + 120s, then every 30 mins)
+setTimeout(() => {
+  try {
+    const { scanIndeedJobs } = require('./indeed-hunter');
+    scanIndeedJobs(getLiveWhatsAppClient()).catch(() => null);
+  } catch (iErr) {}
+}, 120000);
+
+setInterval(async () => {
+  try {
+    const { scanIndeedJobs } = require('./indeed-hunter');
+    await scanIndeedJobs(getLiveWhatsAppClient()).catch(() => null);
+  } catch (iErr) {}
+}, 30 * 60 * 1000);
 
 // Start lightweight web UI for scanning QR code directly in the browser
 const webPort = parseInt(process.env.PORT || '8080', 10);

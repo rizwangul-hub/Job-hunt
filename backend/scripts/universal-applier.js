@@ -28,6 +28,67 @@ const CANDIDATE = {
   calendly: process.env.CANDIDATE_CALENDLY || 'https://calendly.com/rizwangul-dev'
 };
 
+// =====================================================================
+// PERSISTENT DEDUPLICATION REGISTRY (Prevents sending multiple times to the same recruiter)
+// =====================================================================
+const REGISTRY_FILE = path.join(__dirname, '../.sent_recruiter_registry.json');
+let sentRegistry = { emails: {}, phones: {} };
+
+function loadRegistry() {
+  if (fs.existsSync(REGISTRY_FILE)) {
+    try {
+      sentRegistry = JSON.parse(fs.readFileSync(REGISTRY_FILE, 'utf8'));
+      if (!sentRegistry.emails) sentRegistry.emails = {};
+      if (!sentRegistry.phones) sentRegistry.phones = {};
+    } catch (e) {
+      sentRegistry = { emails: {}, phones: {} };
+    }
+  }
+}
+loadRegistry();
+
+function saveRegistry() {
+  try {
+    fs.writeFileSync(REGISTRY_FILE, JSON.stringify(sentRegistry, null, 2));
+  } catch (e) {}
+}
+
+function isEmailAlreadyContacted(email) {
+  if (!email) return false;
+  loadRegistry();
+  const clean = email.toLowerCase().trim();
+  return Boolean(sentRegistry.emails[clean]);
+}
+
+function isPhoneAlreadyContacted(phone) {
+  if (!phone) return false;
+  loadRegistry();
+  const clean = phone.replace(/\D/g, '');
+  return Boolean(sentRegistry.phones[clean]);
+}
+
+function recordEmailContacted(email, meta = {}) {
+  if (!email) return;
+  loadRegistry();
+  const clean = email.toLowerCase().trim();
+  sentRegistry.emails[clean] = {
+    contactedAt: new Date().toISOString(),
+    ...meta
+  };
+  saveRegistry();
+}
+
+function recordPhoneContacted(phone, meta = {}) {
+  if (!phone) return;
+  loadRegistry();
+  const clean = phone.replace(/\D/g, '');
+  sentRegistry.phones[clean] = {
+    contactedAt: new Date().toISOString(),
+    ...meta
+  };
+  saveRegistry();
+}
+
 function getCVPath() {
   const primary = path.join(__dirname, '../uploads/Resume.pdf');
   if (fs.existsSync(primary)) return primary;
@@ -150,6 +211,14 @@ Phone: ${CANDIDATE.phone}`
 
 // Dispatches application email to recruiter
 async function sendApplicationEmail({ toEmail, title, company, description, sourceUrl }) {
+  if (!toEmail) return false;
+
+  // DEDUPLICATION CHECK: Never send multiple times to the same recruiter
+  if (isEmailAlreadyContacted(toEmail)) {
+    console.log(`🛡️ [DEDUPLICATION SHIELD]: Recruiter email "${toEmail}" has ALREADY received an application before. Skipping to avoid duplicate email!`);
+    return false;
+  }
+
   const mailer = getTransporter();
   if (!mailer) {
     console.log(`⚠️ SMTP Transporter not configured. Skipping email dispatch to ${toEmail}`);
@@ -178,6 +247,7 @@ async function sendApplicationEmail({ toEmail, title, company, description, sour
     });
 
     console.log(`✅ [EMAIL DISPATCHED] Successfully sent CV to ${toEmail} for "${title}" (${info.messageId})`);
+    recordEmailContacted(toEmail, { title, company, sourceUrl });
     return true;
   } catch (err) {
     console.error(`❌ [EMAIL ERROR] Failed sending to ${toEmail}: ${err.message}`);
@@ -188,6 +258,13 @@ async function sendApplicationEmail({ toEmail, title, company, description, sour
 // Dispatches application WhatsApp message & document (if whatsapp client is provided)
 async function sendApplicationWhatsApp(whatsappClient, { toPhone, title, company, description }) {
   if (!whatsappClient) return false;
+  if (!toPhone) return false;
+
+  // DEDUPLICATION CHECK: Never send multiple times to the same recruiter phone
+  if (isPhoneAlreadyContacted(toPhone)) {
+    console.log(`🛡️ [DEDUPLICATION SHIELD]: Recruiter phone "${toPhone}" has ALREADY received an application before. Skipping to avoid duplicate pitch!`);
+    return false;
+  }
 
   try {
     const cleanNumber = toPhone.replace(/\D/g, '');
@@ -220,6 +297,7 @@ async function sendApplicationWhatsApp(whatsappClient, { toPhone, title, company
       }
     }
 
+    recordPhoneContacted(toPhone, { title, company });
     return true;
   } catch (err) {
     console.error(`❌ [WHATSAPP ERROR] Could not send to recruiter ${toPhone}: ${err.message}`);
