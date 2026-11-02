@@ -59,13 +59,40 @@ if (process.platform === 'linux' && process.env.PURGE_AUTH === 'true') {
   } catch (cleanErr) {}
 }
 
+function getSystemBrowserPath() {
+  if (process.env.PUPPETEER_EXECUTABLE_PATH && fs.existsSync(process.env.PUPPETEER_EXECUTABLE_PATH)) {
+    return process.env.PUPPETEER_EXECUTABLE_PATH;
+  }
+  if (process.platform === 'win32') {
+    const winPaths = [
+      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+      'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe'
+    ];
+    for (const p of winPaths) {
+      if (fs.existsSync(p)) return p;
+    }
+  } else if (process.platform === 'linux') {
+    const linuxPaths = ['/usr/bin/chromium', '/usr/bin/google-chrome', '/usr/bin/chromium-browser'];
+    for (const p of linuxPaths) {
+      if (fs.existsSync(p)) return p;
+    }
+  }
+  try {
+    return puppeteer.executablePath ? puppeteer.executablePath() : undefined;
+  } catch (e) {
+    return undefined;
+  }
+}
+
 const client = new Client({
   authStrategy: new LocalAuth({
     dataPath: path.join(__dirname, '../.wwebjs_auth')
   }),
   puppeteer: {
     headless: true,
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || (puppeteer.executablePath ? puppeteer.executablePath() : undefined),
+    executablePath: getSystemBrowserPath(),
     protocolTimeout: 300000,
     timeout: 120000,
     args: [
