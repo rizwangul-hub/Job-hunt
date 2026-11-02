@@ -44,14 +44,18 @@ const TARGET_KEYWORDS = [
   'web developer', 'python', 'javascript', 'nextjs', 'data entry', 'computer operator'
 ];
 
-// Target public search queries for Facebook & Instagram tech hiring (Pakistan Onsite/Remote & Worldwide Remote)
+// Target public search queries for Facebook & Instagram tech hiring & freelance projects
 const SOCIAL_TARGETS = [
   { platform: 'facebook', query: 'hiring mern stack developer pakistan email', url: 'https://www.google.com/search?q=site:facebook.com+"hiring"+("mern"+"developer"+OR+"full+stack"+OR+"react")+"pakistan"+gmail.com+OR+careers+OR+hr' },
   { platform: 'facebook', query: 'hiring software developer lahore karachi islamabad email', url: 'https://www.google.com/search?q=site:facebook.com+"we+are+hiring"+("software+engineer"+OR+"web+developer")+(lahore+OR+islamabad+OR+karachi)+email' },
+  { platform: 'facebook', query: 'need website developer pakistan email OR whatsapp', url: 'https://www.google.com/search?q=site:facebook.com+("need+website"+OR+"need+developer"+OR+"looking+for+developer")+pakistan+("whatsapp"+OR+"email")' },
+  { platform: 'facebook', query: 'need full stack developer for project contact email', url: 'https://www.google.com/search?q=site:facebook.com+("project"+OR+"freelance")+("full+stack"+OR+"mern"+OR+"react")+("contact"+OR+"email")' },
   { platform: 'facebook', query: 'hiring full stack developer worldwide remote send cv', url: 'https://www.google.com/search?q=site:facebook.com+"hiring"+("full+stack"+OR+"mern"+OR+"react")+"remote"+send+cv' },
   { platform: 'instagram', query: 'instagram hiring developer pakistan careers', url: 'https://www.google.com/search?q=site:instagram.com+"hiring"+("mern"+OR+"react"+OR+"fullstack"+OR+"python")+pakistan+("careers"+OR+"hr"+OR+"@" )' },
+  { platform: 'instagram', query: 'instagram need website developer project email', url: 'https://www.google.com/search?q=site:instagram.com+("need+website"+OR+"need+developer"+OR+"project")+email' },
   { platform: 'instagram', query: 'instagram hiring remote software engineer email', url: 'https://www.google.com/search?q=site:instagram.com+"hiring"+("remote"+OR+"worldwide")+("developer"+OR+"engineer")+email' },
   { platform: 'social', query: 'remote full stack developer hiring email send resume', url: 'https://www.google.com/search?q=("apply+at"+OR+"send+cv+to"+OR+"send+resume+to")+("mern+developer"+OR+"full+stack+developer"+OR+"react")+"remote"' },
+  { platform: 'social', query: 'freelance full stack web developer project email contact', url: 'https://www.google.com/search?q=("need+developer"+OR+"freelance+project")+("web+developer"+OR+"full+stack")+email' },
   { platform: 'social', query: 'python developer remote hiring email', url: 'https://www.google.com/search?q=("apply+at"+OR+"send+cv+to")+("python+developer"+OR+"backend+developer")+"remote"' }
 ];
 

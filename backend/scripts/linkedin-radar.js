@@ -32,22 +32,26 @@ const CANDIDATE = {
 };
 
 const SEARCH_QUERIES = [
-  // Pakistan (Onsite & Remote)
+  // Pakistan (Onsite & Remote & Projects)
   { keyword: 'Full Stack Developer', location: 'Pakistan' },
   { keyword: 'MERN Stack Developer', location: 'Pakistan' },
   { keyword: 'Software Developer', location: 'Pakistan' },
   { keyword: 'React Developer', location: 'Pakistan' },
   { keyword: 'Node.js Developer', location: 'Pakistan' },
   { keyword: 'Web Developer', location: 'Pakistan' },
+  { keyword: 'Freelance Web Developer', location: 'Pakistan' },
+  { keyword: 'Website Developer', location: 'Pakistan' },
   { keyword: 'Python Developer', location: 'Pakistan' },
   { keyword: 'Software Engineer', location: 'Lahore' },
   { keyword: 'Frontend Developer', location: 'Islamabad' },
   { keyword: 'Data Entry Operator', location: 'Pakistan' },
-  // Worldwide (Strictly Remote)
+  // Worldwide (Strictly Remote & Freelance Contracts)
   { keyword: 'Full Stack Developer', location: 'Remote' },
   { keyword: 'MERN Stack Developer', location: 'Remote' },
   { keyword: 'React Developer', location: 'Remote' },
   { keyword: 'Node.js Developer', location: 'Remote' },
+  { keyword: 'Contract Developer', location: 'Remote' },
+  { keyword: 'Freelance Developer', location: 'Remote' },
   { keyword: 'Python Developer', location: 'Remote' },
   { keyword: 'Frontend Developer', location: 'Remote' },
   { keyword: 'Backend Developer', location: 'Remote' }

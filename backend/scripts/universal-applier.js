@@ -115,7 +115,68 @@ function getTransporter() {
 function craftApplicationPitch(title, company, description = '') {
   const combined = (title + ' ' + description).toLowerCase();
 
-  if (
+  const hasProjectIntent = 
+    combined.includes('project') || 
+    combined.includes('freelance') || 
+    combined.includes('client') || 
+    combined.includes('gig') || 
+    combined.includes('contract') || 
+    combined.includes('build') || 
+    combined.includes('need') || 
+    combined.includes('looking for someone') || 
+    combined.includes('budget') ||
+    combined.includes('custom website') ||
+    combined.includes('landing page');
+
+  const hasTechDeliverable = 
+    combined.includes('website') || 
+    combined.includes('web') || 
+    combined.includes('app') || 
+    combined.includes('software') || 
+    combined.includes('full stack') || 
+    combined.includes('mern') || 
+    combined.includes('react') || 
+    combined.includes('node');
+
+  const isFormalJobOnly = 
+    combined.includes('salary:') || 
+    combined.includes('stipend:') || 
+    combined.includes('working hours:') || 
+    combined.includes('employmenttype') || 
+    combined.includes('schema.org');
+
+  const isProject = (hasProjectIntent && hasTechDeliverable) && !isFormalJobOnly;
+
+  if (isProject) {
+    return {
+      subject: `Full-Stack Web & App Development Proposal — ${CANDIDATE.name}`,
+      body: `Assalam-o-Alaikum / Hello,
+
+I saw your requirement regarding your project / website development needs.
+
+I am Rizwan Ullah, an experienced Full-Stack MERN & Software Developer. I can take complete ownership of your project and build a high-performance, beautifully designed, and fully responsive website or mobile application from concept to full launch.
+
+Why Work With Me on Your Project:
+✅ Pixel-perfect, responsive UI/UX (React.js, Next.js, Tailwind CSS)
+✅ Robust, scalable backend & REST APIs (Node.js, Express, MongoDB, PostgreSQL)
+✅ Full-stack integration, secure authentication & fast loading speed
+✅ Fast delivery, clean code, and 100% committed post-delivery revisions
+
+Portfolio & Live Production Work:
+- 🌐 Online Portfolio: ${CANDIDATE.portfolio}
+- 💼 LinkedIn Profile: ${CANDIDATE.linkedin}
+- 💻 GitHub Repositories: ${CANDIDATE.github}
+- 📞 Direct WhatsApp / Phone: ${CANDIDATE.phone}
+
+My CV and technical profile are attached for your evaluation. I am available to start immediately — let’s connect on WhatsApp (+92 325 5984244) or reply to discuss your project requirements!
+
+Best regards,
+${CANDIDATE.name}
+Full-Stack Web & Software Developer
+Email: ${CANDIDATE.email}
+Phone / WhatsApp: ${CANDIDATE.phone}`
+    };
+  } else if (
     combined.includes('data entry') ||
     combined.includes('computer operator') ||
     combined.includes('office assistant') ||
@@ -291,8 +352,15 @@ async function sendApplicationWhatsApp(whatsappClient, { toPhone, title, company
       targetJid = cleanNumber + '@c.us';
     }
 
-    const pitch = craftApplicationPitch(title, company, description);
-    const shortPitch = `Assalam-o-Alaikum / Hello Hiring Team,\n\nI am writing to apply for the *${title}* opening${company ? ` at *${company}*` : ''}.\n\nI am a Full-Stack Developer experienced in React, Node.js, Next.js, and modern software development.\n\n🌐 *Portfolio:* ${CANDIDATE.portfolio}\n💼 *LinkedIn:* ${CANDIDATE.linkedin}\n💻 *GitHub:* ${CANDIDATE.github}\n📞 *WhatsApp:* ${CANDIDATE.phone}\n\nI have also attached my CV for your review. Looking forward to discussing this opportunity!\n\nBest regards,\n*${CANDIDATE.name}*\n${CANDIDATE.phone} | ${CANDIDATE.email}`;
+    const isProj = (title + ' ' + description).toLowerCase().includes('project') ||
+                   (title + ' ' + description).toLowerCase().includes('need website') ||
+                   (title + ' ' + description).toLowerCase().includes('build') ||
+                   (title + ' ' + description).toLowerCase().includes('freelance') ||
+                   (title + ' ' + description).toLowerCase().includes('client');
+
+    const shortPitch = isProj
+      ? `Assalam-o-Alaikum! I saw your requirement regarding the *${title}* project.\n\nI am *${CANDIDATE.name}*, a Full-Stack MERN & Web Developer. I will build and deliver your website or application end-to-end with high quality and fast turnaround!\n\n🌐 *Portfolio:* ${CANDIDATE.portfolio}\n💻 *GitHub:* ${CANDIDATE.github}\n💼 *LinkedIn:* ${CANDIDATE.linkedin}\n📞 *WhatsApp:* ${CANDIDATE.phone}\n\nAttached is my CV & profile. I am ready to start immediately — let's discuss your project!`
+      : `Assalam-o-Alaikum / Hello Hiring Team,\n\nI am writing to apply for the *${title}* opening${company ? ` at *${company}*` : ''}.\n\nI am a Full-Stack Developer experienced in React, Node.js, Next.js, and modern software development.\n\n🌐 *Portfolio:* ${CANDIDATE.portfolio}\n💼 *LinkedIn:* ${CANDIDATE.linkedin}\n💻 *GitHub:* ${CANDIDATE.github}\n📞 *WhatsApp:* ${CANDIDATE.phone}\n\nI have also attached my CV for your review. Looking forward to discussing this opportunity!\n\nBest regards,\n*${CANDIDATE.name}*\n${CANDIDATE.phone} | ${CANDIDATE.email}`;
 
     // Send text pitch
     await whatsappClient.sendMessage(targetJid, shortPitch);

@@ -589,7 +589,7 @@ async function processIncomingMessage(msg, preloadedChat = null) {
       }
     }
 
-    // Check if post looks like a job or hiring post
+    // Check if post looks like a job, freelance lead, or project request
     const lower = text.toLowerCase();
     const isHiring = 
       lower.includes('hiring') || 
@@ -603,6 +603,22 @@ async function processIncomingMessage(msg, preloadedChat = null) {
       lower.includes('classified-jobs') || 
       lower.includes('read job details') || 
       lower.includes('hrpostingpartner') || 
+      lower.includes('project') || 
+      lower.includes('need website') || 
+      lower.includes('need a website') || 
+      lower.includes('need web') || 
+      lower.includes('need app') || 
+      lower.includes('need developer') || 
+      lower.includes('build website') || 
+      lower.includes('build app') || 
+      lower.includes('freelance') || 
+      lower.includes('client') || 
+      lower.includes('contract') || 
+      lower.includes('custom website') || 
+      lower.includes('landing page') || 
+      lower.includes('ecommerce') || 
+      lower.includes('shopify') || 
+      lower.includes('wordpress') || 
       lower.includes('looking for') || 
       lower.includes('vacancy') || 
       lower.includes('intern') || 
@@ -703,7 +719,62 @@ async function processIncomingMessage(msg, preloadedChat = null) {
     let pitch = '';
     const lowerRole = (title + ' ' + text).toLowerCase();
 
-    if (
+    const hasProjectIntent = 
+      lowerRole.includes('project') || 
+      lowerRole.includes('freelance') || 
+      lowerRole.includes('client') || 
+      lowerRole.includes('gig') || 
+      lowerRole.includes('contract') || 
+      lowerRole.includes('build') || 
+      lowerRole.includes('need') || 
+      lowerRole.includes('looking for someone') || 
+      lowerRole.includes('budget') ||
+      lowerRole.includes('custom website') ||
+      lowerRole.includes('landing page');
+
+    const hasTechDeliverable = 
+      lowerRole.includes('website') || 
+      lowerRole.includes('web') || 
+      lowerRole.includes('app') || 
+      lowerRole.includes('software') || 
+      lowerRole.includes('full stack') || 
+      lowerRole.includes('mern') || 
+      lowerRole.includes('react') || 
+      lowerRole.includes('node');
+
+    const isFormalJobOnly = 
+      lowerRole.includes('salary:') || 
+      lowerRole.includes('stipend:') || 
+      lowerRole.includes('working hours:') || 
+      lowerRole.includes('employmenttype') || 
+      lowerRole.includes('schema.org');
+
+    const isProject = (hasProjectIntent && hasTechDeliverable) && !isFormalJobOnly;
+
+    if (isProject) {
+      pitch = `Salam! I saw your post regarding your website / application development project.
+
+I am Rizwan Ullah, an experienced Full-Stack MERN & Software Developer. I can take complete responsibility for your project from modern design to full deployment!
+
+What I Deliver for Your Project:
+✅ Pixel-perfect, fast & responsive UI/UX (React.js, Next.js, Tailwind CSS)
+✅ Scalable backend APIs & secure databases (Node.js, Express, MongoDB, SQL)
+✅ Clean code, bug-free execution, and fast delivery
+✅ 100% committed post-launch support and revisions
+
+Live Portfolio & Production Samples:
+- 🌐 Portfolio: ${portfolio}
+- 💼 LinkedIn: ${linkedin}
+- 💻 GitHub: ${github}
+- 📞 Direct WhatsApp / Call: +92 325 5984244
+
+I have attached my resume & profile overview below. I am available to start immediately — let's connect on WhatsApp to discuss your project requirements!
+
+Best regards,
+${candidateName}
+Full-Stack Web & Software Developer
+Email: rizwangul535@gmail.com`;
+    } else if (
       lowerRole.includes('data entry') ||
       lowerRole.includes('computer operator') ||
       lowerRole.includes('office') ||
