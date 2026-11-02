@@ -322,18 +322,12 @@ function scheduleRadars() {
 if (process.platform === 'win32') {
   scheduleRadars();
 } else {
-  // On Render/Linux (512MB RAM limit), wait for WhatsApp ready or 5-min grace period
+  // On Render/Linux (512MB RAM limit), strictly wait for WhatsApp to be linked
+  // NEVER run extra background workers while waiting for QR scan
   client.once('ready', () => {
     console.log('✅ WhatsApp ready! Starting autonomous background radars...');
     scheduleRadars();
   });
-
-  setTimeout(() => {
-    if (!radarsScheduled) {
-      console.log('ℹ️ 5-minute boot grace period elapsed. Starting autonomous radars in standalone mode...');
-      scheduleRadars();
-    }
-  }, 5 * 60 * 1000);
 }
 
 // Start lightweight web UI for scanning QR code directly in the browser

@@ -89,6 +89,44 @@ async function scanSocialTechJobs(whatsappClient = null) {
   let browser = null;
   let newAppliedCount = 0;
 
+  // On Linux/Render (512MB RAM), never launch a second Chromium instance to prevent OOM
+  if (process.platform === 'linux') {
+    console.log('ℹ️ [CLOUD RESOURCE GUARD] Running Social Radar in lightweight HTTP mode to keep container under 200MB RAM.');
+    for (const target of SOCIAL_TARGETS) {
+      console.log(`🔎 [SCANNING] ${target.platform.toUpperCase()}: "${target.query}"...`);
+      try {
+        const duckUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(target.query + ' email OR hr')}`;
+        const res = await fetch(duckUrl, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+        });
+        if (!res.ok) continue;
+        const html = await res.text();
+        const snippetMatches = html.match(/<a class="result__snippet[^>]*>([\s\S]*?)<\/a>/gi) || [];
+        for (const snip of snippetMatches) {
+          const plain = snip.replace(/<[^>]+>/g, ' ');
+          const emailRegex = /[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}/g;
+          const emails = (plain.match(emailRegex) || []).filter(e => !e.includes('duckduckgo') && !e.includes('example.com'));
+          const phone = extractPhoneNumber(plain);
+          if (emails.length > 0 || phone) {
+            const result = await executeUniversalApply({
+              title: 'Full Stack Developer',
+              company: `${target.platform.toUpperCase()} Recruiter Post`,
+              description: plain,
+              recruiterEmail: emails[0] || null,
+              recruiterPhone: phone || null,
+              applyUrl: `https://${target.platform}.com`
+            }, whatsappClient);
+            if (result.emailSent || result.whatsappSent) newAppliedCount++;
+          }
+        }
+      } catch (err) {}
+    }
+    console.log(`\n======================================================`);
+    console.log(`🏁 SOCIAL RADAR SCAN COMPLETE: ${newAppliedCount} new applications dispatched.`);
+    console.log('======================================================\n');
+    return newAppliedCount;
+  }
+
   try {
     browser = await puppeteer.launch({
       headless: 'new',

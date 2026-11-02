@@ -98,6 +98,43 @@ async function scanIndeedJobs(whatsappClient = null) {
   let browser = null;
   let applicationsDispatched = 0;
 
+  // On Linux/Render (512MB RAM), never launch a second Chromium instance to prevent OOM
+  if (process.platform === 'linux') {
+    console.log('ℹ️ [CLOUD RESOURCE GUARD] Running Indeed Radar in lightweight HTTP mode to keep container under 200MB RAM.');
+    for (const query of INDEED_QUERIES) {
+      console.log(`🔎 [INDEED SCAN] "${query.keyword}" in "${query.location}"...`);
+      try {
+        const searchUrl = `https://html.duckduckgo.com/html/?q=site:pk.indeed.com+("${encodeURIComponent(query.keyword)}")+pakistan+("careers"+OR+"hr"+OR+"@" )`;
+        const res = await fetch(searchUrl, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+        });
+        if (!res.ok) continue;
+        const html = await res.text();
+        const snippetMatches = html.match(/<a class="result__snippet[^>]*>([\s\S]*?)<\/a>/gi) || [];
+        for (const snip of snippetMatches) {
+          const plain = snip.replace(/<[^>]+>/g, ' ');
+          const emails = extractEmails(plain);
+          const phone = extractPhoneNumber(plain);
+          if (emails.length > 0 || phone) {
+            const result = await executeUniversalApply({
+              title: query.keyword,
+              company: 'Indeed Tech Recruiter',
+              description: plain,
+              recruiterEmail: emails[0] || null,
+              recruiterPhone: phone || null,
+              applyUrl: 'https://pk.indeed.com'
+            }, whatsappClient);
+            if (result.emailSent || result.whatsappSent) applicationsDispatched++;
+          }
+        }
+      } catch (err) {}
+    }
+    console.log(`\n======================================================`);
+    console.log(`🏁 INDEED RADAR SCAN COMPLETE: ${applicationsDispatched} new applications dispatched.`);
+    console.log('======================================================\n');
+    return applicationsDispatched;
+  }
+
   try {
     browser = await puppeteer.launch({
       headless: 'new',
