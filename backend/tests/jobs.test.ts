@@ -81,8 +81,8 @@ describe('Job Ingestion & Application Automation Workflow', () => {
   });
 
   it('should approve an opportunity and generate an application record', async () => {
-    // Ingest another distinct job
-    const rawJob = 'React Native Mobile Developer needed for fintech project. Email dev@fintechmobile.io';
+    // Ingest another distinct job with safe mock email
+    const rawJob = 'React Native Mobile Developer needed for mobile project. Email recruiter@example.com';
     const createRes = await request(app)
       .post('/api/jobs/manual')
       .set('Authorization', `Bearer ${authToken}`)

@@ -748,7 +748,16 @@ Email: rizwangul535@gmail.com`;
       targetEmail = targetEmail.replace(/[.,;:)]+$/, '').trim().toLowerCase();
     }
 
-    if (targetEmail && !targetEmail.includes('example.com') && !targetEmail.includes('w3.org')) {
+    if (
+      targetEmail && 
+      !targetEmail.includes('example.com') && 
+      !targetEmail.includes('w3.org') &&
+      !targetEmail.includes('fintechmobile.io') &&
+      !targetEmail.includes('innovatex.io') &&
+      !targetEmail.includes('innovate.pk') &&
+      !targetEmail.includes('cloudgridsys.com') &&
+      !targetEmail.includes('test.com')
+    ) {
       if (mailTransporter) {
         try {
           await mailTransporter.sendMail({
@@ -966,6 +975,10 @@ Email: rizwangul535@gmail.com`;
                    !e.includes('sentry') && 
                    !e.includes('domain.com') && 
                    !e.includes('cloudflare.com') && 
+                   !e.includes('fintechmobile.io') &&
+                   !e.includes('innovatex.io') &&
+                   !e.includes('innovate.pk') &&
+                   !e.includes('cloudgridsys.com') &&
                    !/\.(png|jpg|jpeg|gif|webp|svg)$/i.test(e);
           });
 

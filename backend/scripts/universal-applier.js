@@ -210,6 +210,23 @@ Phone: ${CANDIDATE.phone}`
 async function sendApplicationEmail({ toEmail, title, company, description, sourceUrl }) {
   if (!toEmail) return false;
 
+  const cleanEmail = toEmail.toLowerCase().trim();
+
+  // Guard against dummy, test, and placeholder domains
+  if (
+    cleanEmail.includes('fintechmobile.io') ||
+    cleanEmail.includes('innovatex.io') ||
+    cleanEmail.includes('innovate.pk') ||
+    cleanEmail.includes('cloudgridsys.com') ||
+    cleanEmail.includes('example.com') ||
+    cleanEmail.includes('test.com') ||
+    cleanEmail.includes('domain.com') ||
+    cleanEmail.includes('sample.com')
+  ) {
+    console.log(`🛡️ [DUMMY DOMAIN SHIELD]: Skipping real email send to mock/dummy address: ${cleanEmail}`);
+    return false;
+  }
+
   // DEDUPLICATION CHECK: Never send multiple times to the same recruiter
   if (isEmailAlreadyContacted(toEmail)) {
     console.log(`🛡️ [DEDUPLICATION SHIELD]: Recruiter email "${toEmail}" has ALREADY received an application before. Skipping to avoid duplicate email!`);
