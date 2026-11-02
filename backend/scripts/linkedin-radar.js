@@ -234,142 +234,117 @@ async function recordApplicationInSystem(jobTitle, company, recruiterEmail, jobU
   } catch (e) {}
 }
 
-// Main LinkedIn Public Radar execution
+// Main LinkedIn Public Radar execution (Ultra-Lightweight HTTP Mode, 0MB Browser Overhead)
 async function scanLinkedInPublicJobs() {
   console.log('\n======================================================');
   console.log('📡 STARTING LINKEDIN PUBLIC RADAR SCAN (0% BAN RISK)');
-  console.log('   Mode: Public Guest API & Job Detail Inspection');
+  console.log('   Mode: Ultra-Lightweight Guest API (0MB Browser Overhead)');
   console.log(`   Target Candidate: ${CANDIDATE.name} (${CANDIDATE.email})`);
   console.log(`   CV Document: ${cvPath ? path.basename(cvPath) : 'NOT FOUND'}`);
   console.log('======================================================\n');
 
-  let browser = null;
   let newApplicationsCount = 0;
 
-  try {
-    browser = await puppeteer.launch({
-      headless: 'new',
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || (puppeteer.executablePath ? puppeteer.executablePath() : undefined),
-      protocolTimeout: 60000,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-blink-features=AutomationControlled'
-      ],
-      defaultViewport: { width: 1280, height: 800 }
-    });
+  for (const query of SEARCH_QUERIES) {
+    console.log(`\n🔎 [RADAR SEARCH] "${query.keyword}" in "${query.location}"...`);
+    const searchUrl = `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=${encodeURIComponent(query.keyword)}&location=${encodeURIComponent(query.location)}`;
 
-    for (const query of SEARCH_QUERIES) {
-      console.log(`\n🔎 [RADAR SEARCH] "${query.keyword}" in "${query.location}"...`);
+    try {
+      const res = await fetch(searchUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+        }
+      });
+      if (!res.ok) continue;
+      const html = await res.text();
 
-      const searchUrl = `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=${encodeURIComponent(query.keyword)}&location=${encodeURIComponent(query.location)}`;
-      let searchPage = null;
+      // Extract job cards via regex
+      const cardRegex = /<li[\s\S]*?<\/li>/gi;
+      const rawCards = html.match(cardRegex) || [];
+      const jobCards = [];
 
-      try {
-        searchPage = await browser.newPage();
-        await searchPage.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
-        await searchPage.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 35000 });
-        await jitter(2000, 3500);
+      for (const card of rawCards) {
+        const urlMatch = card.match(/href="([^"]*?\/jobs\/view\/[0-9]+[^"]*?)"/i) || card.match(/href="([^"]*?jobs\/view\/[^"]*?)"/i);
+        const titleMatch = card.match(/<h3[^>]*class="[^"]*base-search-card__title[^"]*"[^>]*>([\s\S]*?)<\/h3>/i);
+        const compMatch = card.match(/<h4[^>]*class="[^"]*base-search-card__subtitle[^"]*"[^>]*>[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/i) || card.match(/<h4[^>]*class="[^"]*base-search-card__subtitle[^"]*"[^>]*>([\s\S]*?)<\/h4>/i);
 
-        const jobCards = await searchPage.evaluate(() => {
-          const cards = document.querySelectorAll('.jobs-search-results__list-item, .job-search-card, [data-job-id], li');
-          const results = [];
-          cards.forEach(c => {
-            const titleEl = c.querySelector('.base-search-card__title, .job-card-list__title, a[href*="/jobs/view/"]');
-            const compEl = c.querySelector('.base-search-card__subtitle, .job-card-container__company-name');
-            const linkEl = c.querySelector('a[href*="/jobs/view/"]');
-            if (titleEl && linkEl) {
-              const url = linkEl.href.split('?')[0];
-              const title = titleEl.innerText.trim();
-              const company = compEl ? compEl.innerText.trim() : 'Tech Company';
-              if (url && title) {
-                results.push({ title, company, url });
-              }
+        if (urlMatch && titleMatch) {
+          const url = urlMatch[1].split('?')[0];
+          const title = titleMatch[1].replace(/<[^>]+>/g, '').trim();
+          const company = compMatch ? compMatch[1].replace(/<[^>]+>/g, '').trim() : 'Tech Company';
+          if (url && title) {
+            jobCards.push({ title, company, url });
+          }
+        }
+      }
+
+      console.log(`📋 Discovered ${jobCards.length} public postings.`);
+
+      for (const job of jobCards.slice(0, 8)) {
+        const jobKey = `${job.title}__${job.company}`.toLowerCase();
+        if (processedJobs.has(jobKey) || processedJobs.has(job.url)) {
+          continue;
+        }
+
+        console.log(`\n💼 Inspecting: "${job.title}" at "${job.company}"`);
+        try {
+          const jobIdMatch = job.url.match(/([0-9]{8,12})/);
+          const detailUrl = jobIdMatch 
+            ? `https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/${jobIdMatch[1]}`
+            : job.url;
+
+          const detailRes = await fetch(detailUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
             }
           });
-          return results;
-        });
+          const detailHtml = detailRes.ok ? await detailRes.text() : '';
+          const plainText = detailHtml.replace(/<[^>]+>/g, ' ');
 
-        console.log(`📋 Discovered ${jobCards.length} public postings.`);
+          // Parse recruiter emails excluding generic system domains
+          const emailRegex = /[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}/g;
+          const matches = plainText.match(emailRegex) || [];
+          const validRecruiterEmails = matches.filter(e => {
+            const em = e.toLowerCase();
+            return !em.includes('linkedin.com') && !em.includes('sentry.io') && !em.includes('example.com') && !em.includes('w3.org');
+          });
 
-        for (const job of jobCards.slice(0, 8)) {
-          const jobKey = `${job.title}__${job.company}`.toLowerCase();
-          if (processedJobs.has(jobKey) || processedJobs.has(job.url)) {
-            continue;
-          }
+          if (validRecruiterEmails.length > 0) {
+            const recruiterEmail = validRecruiterEmails[0];
+            console.log(`🎯 Recruiter Contact Discovered: ${recruiterEmail}`);
 
-          console.log(`\n💼 Inspecting: "${job.title}" at "${job.company}"`);
-          let jobTab = null;
-          try {
-            jobTab = await browser.newPage();
-            await jobTab.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
-            await jobTab.goto(job.url, { waitUntil: 'domcontentloaded', timeout: 25000 });
-            await jitter(1500, 2500);
+            const pitch = buildApplicationPitch(job.title, job.company, plainText);
 
-            const pageContent = await jobTab.evaluate(() => {
-              const descEl = document.querySelector('.show-more-less-html__markup, .description__text, .jobs-description');
-              return {
-                text: descEl ? descEl.innerText : (document.body ? document.body.innerText : '')
-              };
-            });
+            // Auto-dispatch Email with CV PDF attached
+            const sent = await sendApplicationEmail(recruiterEmail, job.title, job.company, pitch);
 
-            // Parse recruiter emails excluding generic system domains
-            const emailRegex = /[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}/g;
-            const matches = pageContent.text.match(emailRegex) || [];
-            const validRecruiterEmails = matches.filter(e => {
-              const em = e.toLowerCase();
-              return !em.includes('linkedin.com') && !em.includes('sentry.io') && !em.includes('example.com') && !em.includes('w3.org');
-            });
-
-            if (validRecruiterEmails.length > 0) {
-              const recruiterEmail = validRecruiterEmails[0];
-              console.log(`🎯 Recruiter Contact Discovered: ${recruiterEmail}`);
-
-              const pitch = buildApplicationPitch(job.title, job.company, pageContent.text);
-
-              // Auto-dispatch Email with CV PDF attached
-              const sent = await sendApplicationEmail(recruiterEmail, job.title, job.company, pitch);
-
-              if (sent) {
-                newApplicationsCount++;
-                processedJobs.add(jobKey);
-                processedJobs.add(job.url);
-                saveCache();
-
-                // Save to MongoDB / Webhook
-                await recordApplicationInSystem(job.title, job.company, recruiterEmail, job.url);
-                console.log(`🎉 [APPLICATION COMPLETED] Successfully applied to "${job.title}" at "${job.company}"!`);
-              }
-            } else {
-              // Mark as inspected so we don't inspect again
+            if (sent) {
+              newApplicationsCount++;
               processedJobs.add(jobKey);
               processedJobs.add(job.url);
               saveCache();
-              console.log(`ℹ️ No direct recruiter email listed in public description. Stored in memory.`);
-            }
-          } catch (jobErr) {
-            console.log(`⚠️ Notice on job inspection: ${jobErr.message}`);
-          } finally {
-            if (jobTab) {
-              await jobTab.close().catch(() => null);
-            }
-          }
 
-          await jitter(1500, 3000);
+              // Save to MongoDB / Webhook
+              await recordApplicationInSystem(job.title, job.company, recruiterEmail, job.url);
+              console.log(`🎉 [APPLICATION COMPLETED] Successfully applied to "${job.title}" at "${job.company}"!`);
+            }
+          } else {
+            // Mark as inspected so we don't inspect again
+            processedJobs.add(jobKey);
+            processedJobs.add(job.url);
+            saveCache();
+            console.log(`ℹ️ No direct recruiter email listed in public description.`);
+          }
+        } catch (jobErr) {
+          console.log(`⚠️ Notice on job inspection: ${jobErr.message}`);
         }
-      } catch (qErr) {
-        console.log(`⚠️ Search error for "${query.keyword}": ${qErr.message}`);
-      } finally {
-        if (searchPage && !searchPage.isClosed()) {
-          await searchPage.close().catch(() => null);
-        }
+
+        await jitter(1000, 2000);
       }
+    } catch (qErr) {
+      console.log(`⚠️ Search error for "${query.keyword}": ${qErr.message}`);
     }
-  } catch (err) {
-    console.error('❌ LinkedIn Radar error:', err.message);
-  } finally {
-    if (browser) await browser.close();
   }
 
   console.log('\n======================================================');
