@@ -155,7 +155,7 @@ const UserProfileSchema = new Schema<IUserProfile>(
         type: String,
         default: `Hi {{contact_name}}, I noticed your opening regarding the {{role_title}} role requiring {{matched_tech}}.\n\nI'm Rizwan Ullah, a Full-Stack MERN & Mobile developer with hands-on experience building production web apps (MongoDB, Express, React, Node.js) and cross-platform mobile apps with React Native.\n\n🚀 Live Portfolio: {{portfolio_url}}\n📄 Attached: Resume PDF\n\nI'd be glad to discuss how I can contribute immediately. Looking forward to hearing from you!`
       },
-      calendlyUrl: { type: String, default: 'https://calendly.com/rizwangul-dev' },
+      calendlyUrl: { type: String, default: '' },
       notificationPhone: { type: String, default: '+92 325 5984244' },
       enableAutoFollowUp: { type: Boolean, default: true },
       enableRecruiterAutoReply: { type: Boolean, default: true }

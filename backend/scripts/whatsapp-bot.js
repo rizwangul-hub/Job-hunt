@@ -435,7 +435,6 @@ async function processIncomingMessage(msg, preloadedChat = null) {
     const isGroupOrChannel = (chat && (chat.isGroup || isChannel)) || fromStr.includes('@g.us') || fromStr.includes('@newsletter');
     const isDirectChat = !isGroupOrChannel && !msg.fromMe;
     const candidateAlertPhone = (process.env.CANDIDATE_WHATSAPP || '923255984244').replace(/[^\d]/g, '');
-    const calendly = process.env.CANDIDATE_CALENDLY || 'https://calendly.com/rizwangul-dev';
     const candidateName = process.env.CANDIDATE_NAME || 'Rizwan Ullah';
     const portfolio = process.env.CANDIDATE_PORTFOLIO || 'https://full-stack-portfolio-coral.vercel.app';
     const github = process.env.CANDIDATE_GITHUB || 'https://github.com/rizwangul-hub';
@@ -468,23 +467,23 @@ async function processIncomingMessage(msg, preloadedChat = null) {
         let autoReply = '';
 
         if (lowerMsg.includes('salary') || lowerMsg.includes('expectation') || lowerMsg.includes('rate') || lowerMsg.includes('budget')) {
-          autoReply = `Salam! Thank you for inquiring. My compensation expectations are competitive and aligned with the role scope and market standard. I am flexible for the right opportunity.\n\nWhen would be a good time for a brief 15-minute intro chat? You can also pick a convenient time directly on my calendar:\n📅 ${calendly}\n\nBest regards,\n${candidateName}`;
+          autoReply = `Salam! Thank you for inquiring. My compensation expectations are competitive and aligned with the role scope and market standard. I am flexible for the right opportunity.\n\nWhen would be a good time for a brief intro chat? I am available via WhatsApp, Google Meet, or phone call.\n\nBest regards,\n${candidateName}`;
         } else if (lowerMsg.includes('interview') || lowerMsg.includes('available') || lowerMsg.includes('call') || lowerMsg.includes('meet')) {
-          autoReply = `Salam! Yes, I am available for an interview call. You can select any time slot that works best for you directly on my calendar:\n📅 ${calendly}\n\nOr let me know what day and time works best for your team (Google Meet / Zoom / WhatsApp). Looking forward to speaking!\n\nBest regards,\n${candidateName}`;
+          autoReply = `Salam! Yes, I am available immediately for an interview call. Please let me know what day and time works best for your team (Google Meet / Zoom / WhatsApp call: +92 325 5984244). Looking forward to speaking!\n\nBest regards,\n${candidateName}`;
         } else {
-          autoReply = `Salam! Thank you for reaching out regarding the position. I am very interested and available immediately to discuss how I can contribute to your team.\n\nKey Links:\n- 🌐 Portfolio: ${portfolio}\n- 💻 GitHub: ${github}\n- 💼 LinkedIn: ${linkedin}\n- 📅 Schedule Intro: ${calendly}\n\nLooking forward to speaking!\n\nBest regards,\n${candidateName}`;
+          autoReply = `Salam! Thank you for reaching out regarding the position. I am very interested and available immediately to discuss how I can contribute to your team.\n\nKey Links:\n- 🌐 Portfolio: ${portfolio}\n- 💻 GitHub: ${github}\n- 💼 LinkedIn: ${linkedin}\n- 📞 Phone / WhatsApp: +92 325 5984244\n\nLooking forward to speaking!\n\nBest regards,\n${candidateName}`;
         }
 
         try {
           await chat.sendMessage(autoReply);
-          console.log(`🤖 [AI AUTO-REPLY SENT] Answered recruiter (+${senderNumber}) with interview availability & Calendly!`);
+          console.log(`🤖 [AI AUTO-REPLY SENT] Answered recruiter (+${senderNumber}) with interview availability & contact details!`);
 
           // FEATURE 1: Send instant alert to candidate's personal phone
           if (candidateAlertPhone) {
             const recruiterAlert = `🚨 *[RECRUITER REPLIED TO YOU!]*\n\n` +
               `👤 *From Recruiter:* +${senderNumber}\n` +
               `💬 *Recruiter Said:* "${text}"\n` +
-              `🤖 *Bot Auto-Replied:* Yes (Shared interview availability & Calendly link)\n\n` +
+              `🤖 *Bot Auto-Replied:* Yes (Confirmed availability for interview call)\n\n` +
               `📱 Open WhatsApp to continue chatting with them!`;
             await client.sendMessage(`${candidateAlertPhone}@c.us`, recruiterAlert);
           }
@@ -602,7 +601,7 @@ Professional Profiles & Demos:
 - 🌐 Portfolio: ${portfolio}
 - 💼 LinkedIn: ${linkedin}
 - 💻 GitHub: ${github}
-- 📅 Schedule Intro Call: ${calendly}
+- 📞 Direct Contact: +92 325 5984244
 
 I have attached my CV below for your review. I am available immediately and look forward to discussing how I can assist your team!
 
@@ -624,7 +623,7 @@ Professional Profiles & Demos:
 - 🌐 Portfolio: ${portfolio}
 - 💼 LinkedIn: ${linkedin}
 - 💻 GitHub: ${github}
-- 📅 Schedule Intro Call: ${calendly}
+- 📞 Direct Contact: +92 325 5984244
 
 I have attached my resume below for your review. Looking forward to discussing how I can contribute immediately!
 
@@ -641,7 +640,7 @@ Professional Profiles & Demos:
 - 🌐 Portfolio: ${portfolio}
 - 💼 LinkedIn: ${linkedin}
 - 💻 GitHub: ${github}
-- 📅 Schedule Intro Call: ${calendly}
+- 📞 Direct Contact: +92 325 5984244
 
 I have attached my resume below for your review. Looking forward to discussing how I can add immediate value to your team!
 
@@ -678,7 +677,7 @@ Email: rizwangul535@gmail.com`;
                 `📊 *Match Score:* ${score}%\n` +
                 `📩 *Channel:* Direct Email (${targetEmail})\n` +
                 `📄 *CV:* Resume.pdf Attached\n` +
-                `📅 *Interview Link:* ${calendly}\n` +
+                `📞 *Phone / WhatsApp:* +92 325 5984244\n` +
                 `⏰ *Time:* ${new Date().toLocaleTimeString()}`;
               await client.sendMessage(`${candidateAlertPhone}@c.us`, alertMsg);
               console.log(`📱 [ALERT DELIVERED] Private notification sent to candidate WhatsApp (+${candidateAlertPhone})`);
@@ -752,7 +751,7 @@ Email: rizwangul535@gmail.com`;
                 `📊 *Match Score:* ${score}%\n` +
                 `💬 *Channel:* WhatsApp Recruiter DM (+${cleanPhone})\n` +
                 `📄 *CV:* Attached & Pitch Delivered\n` +
-                `📅 *Interview Link:* ${calendly}\n` +
+                `📞 *Phone / WhatsApp:* +92 325 5984244\n` +
                 `⏰ *Time:* ${new Date().toLocaleTimeString()}`;
               await client.sendMessage(`${candidateAlertPhone}@c.us`, alertMsg);
               console.log(`📱 [ALERT DELIVERED] Private notification sent to candidate WhatsApp (+${candidateAlertPhone})`);

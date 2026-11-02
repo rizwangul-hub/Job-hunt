@@ -7,7 +7,7 @@
  * 3. Deep Contact Extraction: Parses recruiter emails (hr@, careers@, info@, jobs@) & WhatsApp phone numbers.
  * 4. Autonomous Direct Dispatch:
  *    - Sends tailored email application with Resume.pdf attached via Gmail SMTP.
- *    - Includes clickable Portfolio, GitHub, LinkedIn, and 1-Click Calendly interview booking links.
+ *    - Includes clickable Portfolio, GitHub, LinkedIn, and direct contact details.
  *    - Sends instant private WhatsApp alert to candidate (+92 325 5984244).
  *    - Records application in MongoDB Atlas for dashboard tracking.
  * 5. Deduplication: Tracks processed jobs to ensure no recruiter receives duplicate applications.
@@ -28,8 +28,7 @@ const CANDIDATE = {
   cleanPhone: '03255984244',
   portfolio: process.env.CANDIDATE_PORTFOLIO || 'https://full-stack-portfolio-coral.vercel.app',
   linkedin: process.env.CANDIDATE_LINKEDIN || 'https://www.linkedin.com/in/rizwanmerndev',
-  github: process.env.CANDIDATE_GITHUB || 'https://github.com/rizwangul-hub',
-  calendly: process.env.CANDIDATE_CALENDLY || 'https://calendly.com/rizwangul-dev'
+  github: process.env.CANDIDATE_GITHUB || 'https://github.com/rizwangul-hub'
 };
 
 const SEARCH_QUERIES = [
@@ -112,10 +111,9 @@ Key Profile Links:
 - 🌐 Portfolio: ${CANDIDATE.portfolio}
 - 💼 LinkedIn: ${CANDIDATE.linkedin}
 - 💻 GitHub: ${CANDIDATE.github}
-- 📅 Schedule a 15-Minute Intro Call: ${CANDIDATE.calendly}
+- 📞 Direct Contact / WhatsApp: ${CANDIDATE.phone}
 
 I have attached my comprehensive CV for your review. I am available immediately and look forward to contributing to your operations.
-
 Warm regards,
 ${CANDIDATE.name}
 Email: ${CANDIDATE.email}
@@ -140,7 +138,7 @@ Key Profile & Project Demos:
 - 🌐 Portfolio: ${CANDIDATE.portfolio}
 - 💻 GitHub: ${CANDIDATE.github}
 - 💼 LinkedIn: ${CANDIDATE.linkedin}
-- 📅 Pick a Time on My Calendar: ${CANDIDATE.calendly}
+- 📞 Direct Contact / WhatsApp: ${CANDIDATE.phone}
 
 My resume is attached for your review. I would welcome the chance to discuss how my skill set aligns with your team's goals.
 
@@ -164,7 +162,7 @@ Engineering Profiles & Live Demos:
 - 🌐 Portfolio: ${CANDIDATE.portfolio}
 - 💻 GitHub: ${CANDIDATE.github}
 - 💼 LinkedIn: ${CANDIDATE.linkedin}
-- 📅 1-Click Interview Scheduling: ${CANDIDATE.calendly}
+- 📞 Direct Phone / WhatsApp: ${CANDIDATE.phone}
 
 Please find my CV attached with detailed project metrics and technical proficiencies. I am available immediately and look forward to an opportunity to speak with you.
 
@@ -411,7 +409,7 @@ function startHealthServer() {
           <div class="card">
             <span class="status-badge">🟢 24/7 CLOUD ACTIVE</span>
             <h1>LinkedIn Public Radar</h1>
-            <p>Scanning LinkedIn public jobs & dispatching direct applications with CV & Calendly.</p>
+            <p>Scanning LinkedIn public jobs & dispatching direct applications with CV & direct contact.</p>
             <div class="metric">
               <span>Candidate:</span>
               <strong>${CANDIDATE.name}</strong>

@@ -24,8 +24,7 @@ const CANDIDATE = {
   whatsappJid: '923255984244@c.us',
   portfolio: process.env.CANDIDATE_PORTFOLIO || 'https://full-stack-portfolio-coral.vercel.app',
   linkedin: process.env.CANDIDATE_LINKEDIN || 'https://www.linkedin.com/in/rizwanmerndev',
-  github: process.env.CANDIDATE_GITHUB || 'https://github.com/rizwangul-hub',
-  calendly: process.env.CANDIDATE_CALENDLY || 'https://calendly.com/rizwangul-dev'
+  github: process.env.CANDIDATE_GITHUB || 'https://github.com/rizwangul-hub'
 };
 
 // =====================================================================
@@ -135,7 +134,6 @@ Candidate Overview:
 - 🌐 Online Portfolio: ${CANDIDATE.portfolio}
 - 💼 LinkedIn Profile: ${CANDIDATE.linkedin}
 - 💻 GitHub Profile: ${CANDIDATE.github}
-- 📅 Schedule a Quick Intro: ${CANDIDATE.calendly}
 - 📞 Direct Contact / WhatsApp: ${CANDIDATE.phone}
 
 My complete resume is attached to this email. I am available immediately for an interview and look forward to hearing from you.
@@ -166,7 +164,6 @@ Candidate Overview & Demos:
 - 🌐 Live Portfolio & Demos: ${CANDIDATE.portfolio}
 - 💻 GitHub Repositories: ${CANDIDATE.github}
 - 💼 LinkedIn: ${CANDIDATE.linkedin}
-- 📅 Schedule a 15-Minute Intro: ${CANDIDATE.calendly}
 - 📞 Contact / WhatsApp: ${CANDIDATE.phone}
 
 Please find my CV attached for your review. I would welcome the opportunity to discuss how my technical expertise can support your current projects.
@@ -196,9 +193,9 @@ Portfolio & Work Highlights:
 - 🌐 Live Portfolio & Projects: ${CANDIDATE.portfolio}
 - 💻 GitHub Repositories: ${CANDIDATE.github}
 - 💼 LinkedIn Profile: ${CANDIDATE.linkedin}
-- 📅 Book a 15-Minute Intro Call: ${CANDIDATE.calendly}
+- 📞 Direct Phone / WhatsApp: ${CANDIDATE.phone}
 
-My resume is attached for your detailed evaluation. I am available to start immediately and would love to connect for a brief introductory interview.
+My resume is attached for your detailed evaluation. I am available to start immediately and would love to connect for an introductory interview.
 
 Warm regards,
 ${CANDIDATE.name}
@@ -278,7 +275,7 @@ async function sendApplicationWhatsApp(whatsappClient, { toPhone, title, company
     }
 
     const pitch = craftApplicationPitch(title, company, description);
-    const shortPitch = `Assalam-o-Alaikum / Hello Hiring Team,\n\nI am writing to apply for the *${title}* opening${company ? ` at *${company}*` : ''}.\n\nI am a Full-Stack Developer experienced in React, Node.js, Next.js, and modern software development.\n\n🌐 *Portfolio:* ${CANDIDATE.portfolio}\n💼 *LinkedIn:* ${CANDIDATE.linkedin}\n💻 *GitHub:* ${CANDIDATE.github}\n📅 *Book a Call:* ${CANDIDATE.calendly}\n\nI have also attached my CV for your review. Looking forward to discussing this opportunity!\n\nBest regards,\n*${CANDIDATE.name}*\n${CANDIDATE.phone} | ${CANDIDATE.email}`;
+    const shortPitch = `Assalam-o-Alaikum / Hello Hiring Team,\n\nI am writing to apply for the *${title}* opening${company ? ` at *${company}*` : ''}.\n\nI am a Full-Stack Developer experienced in React, Node.js, Next.js, and modern software development.\n\n🌐 *Portfolio:* ${CANDIDATE.portfolio}\n💼 *LinkedIn:* ${CANDIDATE.linkedin}\n💻 *GitHub:* ${CANDIDATE.github}\n📞 *WhatsApp:* ${CANDIDATE.phone}\n\nI have also attached my CV for your review. Looking forward to discussing this opportunity!\n\nBest regards,\n*${CANDIDATE.name}*\n${CANDIDATE.phone} | ${CANDIDATE.email}`;
 
     // Send text pitch
     await whatsappClient.sendMessage(targetJid, shortPitch);
