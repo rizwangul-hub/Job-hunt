@@ -109,11 +109,16 @@ const client = new Client({
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
       '--no-first-run',
       '--no-zygote',
       '--disable-gpu',
       '--disable-software-rasterizer',
+      '--disable-extensions',
+      '--disable-default-apps',
+      '--mute-audio',
+      '--no-default-browser-check',
+      '--window-size=800,600',
+      '--js-flags=--max-old-space-size=128',
       '--disable-background-timer-throttling',
       '--disable-backgrounding-occluded-windows',
       '--disable-renderer-backgrounding'
@@ -1324,10 +1329,10 @@ client.initialize().catch(async (err) => {
   }, 5000);
 });
 
-// Diagnostic watchdog: Logs exact WhatsApp Web DOM state if QR doesn't emit within 35 seconds
+// Diagnostic watchdog: Logs exact WhatsApp Web DOM state if QR doesn't emit within 60 seconds
 setTimeout(async () => {
   if (!currentQrDataUrl && !isOnline) {
-    console.log('⚠️ [DIAGNOSTIC] WhatsApp Web has not emitted QR after 35s. Checking Chromium DOM...');
+    console.log('⚠️ [DIAGNOSTIC] WhatsApp Web has not emitted QR after 60s. Checking Chromium DOM...');
     if (client.pupPage && !client.pupPage.isClosed()) {
       try {
         const title = await client.pupPage.title();
@@ -1350,7 +1355,7 @@ setTimeout(async () => {
       console.log('ℹ️ Chromium pupPage not yet attached or already closed.');
     }
   }
-}, 35000);
+}, 60000);
 
 process.on('SIGINT', async () => {
   console.log('\n🛑 Shutting down WhatsApp bot cleanly...');

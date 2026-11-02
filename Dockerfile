@@ -63,4 +63,4 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PORT=10000
 EXPOSE 10000 5000
 
-CMD ["node", "--max-old-space-size=256", "scripts/whatsapp-bot.js"]
+CMD ["node", "--max-old-space-size=160", "scripts/whatsapp-bot.js"]
