@@ -285,6 +285,19 @@ setInterval(async () => {
 // Start lightweight web UI for scanning QR code directly in the browser
 const webPort = parseInt(process.env.PORT || '8080', 10);
 const server = http.createServer((req, res) => {
+  if (req.url === '/health' || req.url === '/api/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      status: 'ok',
+      service: 'RizAgent Autonomous Job Hunter',
+      uptime: process.uptime(),
+      whatsappOnline: isOnline,
+      radarsActive: true,
+      timestamp: new Date().toISOString()
+    }));
+    return;
+  }
+
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
   if (isOnline) {
     res.end(`
