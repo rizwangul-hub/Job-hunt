@@ -1,8 +1,15 @@
 node_modules
+**/node_modules
 npm-debug.log
 .git
 .github
 frontend
 .wwebjs_cache
+**/.wwebjs_cache
+.wwebjs_auth
+**/.wwebjs_auth
 .linkedin_auth
+**/.linkedin_auth
 .linkedin_radar_cache.json
+**/*.cache.json
+**/whatsapp-qr.png

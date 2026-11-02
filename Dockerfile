@@ -54,10 +54,13 @@ RUN npm install --production
 # Copy backend source & scripts
 COPY backend/ ./
 
+# Purge any local Windows session files or caches
+RUN rm -rf .wwebjs_auth .wwebjs_cache
+
 # Use system chromium
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PORT=10000
-EXPOSE 10000
+EXPOSE 10000 5000
 
-CMD ["node", "scripts/whatsapp-bot.js"]
+CMD ["node", "--max-old-space-size=256", "scripts/whatsapp-bot.js"]

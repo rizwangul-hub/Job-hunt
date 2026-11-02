@@ -67,8 +67,17 @@ const client = new Client({
       '--no-first-run',
       '--no-zygote',
       '--disable-gpu',
+      '--disable-extensions',
+      '--disable-default-apps',
+      '--disable-sync',
+      '--disable-translate',
+      '--hide-scrollbars',
+      '--metrics-recording-only',
+      '--mute-audio',
+      '--no-default-browser-check',
       '--disable-web-security',
       '--disable-features=IsolateOrigins,site-per-process',
+      '--js-flags=--max-old-space-size=128',
       '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
     ]
   },
@@ -76,6 +85,7 @@ const client = new Client({
 });
 
 let currentQrDataUrl = null;
+let currentQrBuffer = null;
 let botStatus = 'Initializing WhatsApp Web...';
 let isOnline = false;
 
@@ -114,16 +124,16 @@ client.on('loading_screen', (percent, message) => {
 client.on('qr', async (qr) => {
   try {
     currentQrDataUrl = await QRCode.toDataURL(qr, { scale: 8, margin: 2 });
+    currentQrBuffer = await QRCode.toBuffer(qr, { scale: 8, margin: 2 });
     botStatus = 'Scan QR code with your phone';
-    const qrBuffer = await QRCode.toBuffer(qr, { scale: 8, margin: 2 });
     if (process.platform === 'win32') {
       try {
         const artifactPath = 'C:\\Users\\HP\\.gemini\\antigravity\\brain\\b6adcc71-ddeb-4d0a-bb2f-4cd5e298dc7a\\whatsapp-qr.png';
-        fs.writeFileSync(artifactPath, qrBuffer);
+        fs.writeFileSync(artifactPath, currentQrBuffer);
       } catch (e) {}
     }
     try {
-      fs.writeFileSync(path.join(__dirname, '../whatsapp-qr.png'), qrBuffer);
+      fs.writeFileSync(path.join(__dirname, '../whatsapp-qr.png'), currentQrBuffer);
     } catch (e) {}
     console.log('📸 Updated fresh whatsapp-qr.png for instant chat scanning');
   } catch (e) {
@@ -299,10 +309,9 @@ setInterval(async () => {
 }, 30 * 60 * 1000);
 
 // Start lightweight web UI for scanning QR code directly in the browser
-// On Linux/Docker/Render, always bind to 10000 to match Render port forwarding & health check
-const webPort = process.platform === 'linux' ? 10000 : parseInt(process.env.PORT || '10000', 10);
 const bootStartTime = Date.now();
-const server = http.createServer((req, res) => {
+
+function handleHttpRequest(req, res) {
   if (req.url === '/health' || req.url === '/api/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
@@ -313,6 +322,12 @@ const server = http.createServer((req, res) => {
       radarsActive: true,
       timestamp: new Date().toISOString()
     }));
+    return;
+  }
+
+  if ((req.url === '/qr.png' || req.url === '/qr') && currentQrBuffer) {
+    res.writeHead(200, { 'Content-Type': 'image/png' });
+    res.end(currentQrBuffer);
     return;
   }
 
@@ -402,10 +417,25 @@ const server = http.createServer((req, res) => {
       </html>
     `);
   }
-});
+}
 
-server.listen(webPort, '0.0.0.0', () => {
-  console.log(`🌐 Web interface active on 0.0.0.0:${webPort} for instant browser QR code scanning`);
+// Multi-Port Active Bridge (Guarantees 200 OK whether Render routes to 10000, 5000, or process.env.PORT)
+const candidatePorts = Array.from(new Set([
+  10000,
+  5000,
+  parseInt(process.env.PORT || '10000', 10)
+].filter(p => !isNaN(p) && p > 0)));
+
+candidatePorts.forEach(port => {
+  try {
+    const s = http.createServer(handleHttpRequest);
+    s.listen(port, '0.0.0.0', () => {
+      console.log(`🌐 Web interface active on 0.0.0.0:${port} for instant browser QR code scanning`);
+    });
+    s.on('error', () => {
+      // Ignore if port in use
+    });
+  } catch (e) {}
 });
 
 // Avoid processing identical messages repeatedly
