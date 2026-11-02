@@ -283,7 +283,7 @@ setInterval(async () => {
 }, 30 * 60 * 1000);
 
 // Start lightweight web UI for scanning QR code directly in the browser
-const webPort = parseInt(process.env.PORT || '8080', 10);
+const webPort = parseInt(process.env.PORT || '10000', 10);
 const server = http.createServer((req, res) => {
   if (req.url === '/health' || req.url === '/api/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -378,18 +378,6 @@ const server = http.createServer((req, res) => {
 server.listen(webPort, '0.0.0.0', () => {
   console.log(`🌐 Web interface active on 0.0.0.0:${webPort} for instant browser QR code scanning`);
 });
-
-// Bind fallback cloud ports (8080 & 10000) so Railway proxy never fails regardless of networking config
-const fallbackPorts = [8080, 10000].filter(p => p !== webPort);
-for (const fbPort of fallbackPorts) {
-  try {
-    const fbServer = http.createServer((req, res) => server.emit('request', req, res));
-    fbServer.listen(fbPort, '0.0.0.0', () => {
-      console.log(`🌐 Dual-port proxy listener active on 0.0.0.0:${fbPort}`);
-    });
-    fbServer.on('error', () => {});
-  } catch (e) {}
-}
 
 // Avoid processing identical messages repeatedly
 const processedMessageHashes = new Set();
