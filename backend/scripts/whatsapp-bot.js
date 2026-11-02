@@ -66,6 +66,8 @@ const client = new Client({
   puppeteer: {
     headless: true,
     executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || (puppeteer.executablePath ? puppeteer.executablePath() : undefined),
+    protocolTimeout: 300000,
+    timeout: 120000,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -73,7 +75,11 @@ const client = new Client({
       '--disable-accelerated-2d-canvas',
       '--no-first-run',
       '--no-zygote',
-      '--disable-gpu'
+      '--disable-gpu',
+      '--disable-software-rasterizer',
+      '--disable-background-timer-throttling',
+      '--disable-backgrounding-occluded-windows',
+      '--disable-renderer-backgrounding'
     ]
   },
   userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
@@ -1023,9 +1029,16 @@ client.on('message_create', async (msg) => {
   await processIncomingMessage(msg);
 });
 
-client.initialize().catch(err => {
+client.initialize().catch(async (err) => {
   console.error('❌ Error during client.initialize():', err.message);
-  botStatus = `Error starting WhatsApp: ${err.message}`;
+  botStatus = `Retrying WhatsApp initialization in 5s (${err.message})...`;
+  try {
+    await client.destroy().catch(() => {});
+  } catch (e) {}
+  setTimeout(() => {
+    botStatus = 'Restarting WhatsApp Web client...';
+    client.initialize().catch(() => {});
+  }, 5000);
 });
 
 // Diagnostic watchdog: Logs exact WhatsApp Web DOM state if QR doesn't emit within 35 seconds
