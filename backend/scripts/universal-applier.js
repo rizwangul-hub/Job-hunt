@@ -52,24 +52,38 @@ function saveRegistry() {
   } catch (e) {}
 }
 
+function normalizeEmail(email) {
+  if (!email) return '';
+  return email.toLowerCase().replace(/^[<"'\s]+|[>"'\s.,;:]+$/g, '').trim();
+}
+
+function normalizePhone(phone) {
+  if (!phone) return '';
+  let clean = phone.replace(/\D/g, '');
+  if (clean.startsWith('03') && clean.length === 11) {
+    clean = '92' + clean.substring(1);
+  }
+  return clean;
+}
+
 function isEmailAlreadyContacted(email) {
-  if (!email) return false;
+  const clean = normalizeEmail(email);
+  if (!clean) return false;
   loadRegistry();
-  const clean = email.toLowerCase().trim();
   return Boolean(sentRegistry.emails[clean]);
 }
 
 function isPhoneAlreadyContacted(phone) {
-  if (!phone) return false;
+  const clean = normalizePhone(phone);
+  if (!clean) return false;
   loadRegistry();
-  const clean = phone.replace(/\D/g, '');
   return Boolean(sentRegistry.phones[clean]);
 }
 
 function recordEmailContacted(email, meta = {}) {
-  if (!email) return;
+  const clean = normalizeEmail(email);
+  if (!clean) return;
   loadRegistry();
-  const clean = email.toLowerCase().trim();
   sentRegistry.emails[clean] = {
     contactedAt: new Date().toISOString(),
     ...meta
@@ -78,14 +92,45 @@ function recordEmailContacted(email, meta = {}) {
 }
 
 function recordPhoneContacted(phone, meta = {}) {
-  if (!phone) return;
+  const clean = normalizePhone(phone);
+  if (!clean) return;
   loadRegistry();
-  const clean = phone.replace(/\D/g, '');
   sentRegistry.phones[clean] = {
     contactedAt: new Date().toISOString(),
     ...meta
   };
   saveRegistry();
+}
+
+// ATOMIC RESERVATION: Checks and marks in one synchronous operation to prevent race conditions
+function reserveEmailContact(email, meta = {}) {
+  const clean = normalizeEmail(email);
+  if (!clean) return false;
+  loadRegistry();
+  if (sentRegistry.emails[clean]) {
+    return false; // Already contacted!
+  }
+  sentRegistry.emails[clean] = {
+    contactedAt: new Date().toISOString(),
+    ...meta
+  };
+  saveRegistry();
+  return true;
+}
+
+function reservePhoneContact(phone, meta = {}) {
+  const clean = normalizePhone(phone);
+  if (!clean) return false;
+  loadRegistry();
+  if (sentRegistry.phones[clean]) {
+    return false; // Already contacted!
+  }
+  sentRegistry.phones[clean] = {
+    contactedAt: new Date().toISOString(),
+    ...meta
+  };
+  saveRegistry();
+  return true;
 }
 
 function getCVPath() {
@@ -289,8 +334,8 @@ async function sendApplicationEmail({ toEmail, title, company, description, sour
   }
 
   // DEDUPLICATION CHECK: Never send multiple times to the same recruiter
-  if (isEmailAlreadyContacted(toEmail)) {
-    console.log(`🛡️ [DEDUPLICATION SHIELD]: Recruiter email "${toEmail}" has ALREADY received an application before. Skipping to avoid duplicate email!`);
+  if (!reserveEmailContact(cleanEmail, { title, company, sourceUrl, channel: 'universal-applier' })) {
+    console.log(`🛡️ [DEDUPLICATION SHIELD]: Recruiter email "${cleanEmail}" has ALREADY received an application before. Skipping to avoid duplicate email!`);
     return false;
   }
 
@@ -322,7 +367,6 @@ async function sendApplicationEmail({ toEmail, title, company, description, sour
     });
 
     console.log(`✅ [EMAIL DISPATCHED] Successfully sent CV to ${toEmail} for "${title}" (${info.messageId})`);
-    recordEmailContacted(toEmail, { title, company, sourceUrl });
     return true;
   } catch (err) {
     console.error(`❌ [EMAIL ERROR] Failed sending to ${toEmail}: ${err.message}`);
@@ -336,7 +380,7 @@ async function sendApplicationWhatsApp(whatsappClient, { toPhone, title, company
   if (!toPhone) return false;
 
   // DEDUPLICATION CHECK: Never send multiple times to the same recruiter phone
-  if (isPhoneAlreadyContacted(toPhone)) {
+  if (!reservePhoneContact(toPhone, { title, company, channel: 'universal-applier-whatsapp' })) {
     console.log(`🛡️ [DEDUPLICATION SHIELD]: Recruiter phone "${toPhone}" has ALREADY received an application before. Skipping to avoid duplicate pitch!`);
     return false;
   }
@@ -482,5 +526,13 @@ module.exports = {
   sendApplicationEmail,
   sendApplicationWhatsApp,
   notifyCandidateOnWhatsApp,
-  executeUniversalApply
+  executeUniversalApply,
+  isEmailAlreadyContacted,
+  recordEmailContacted,
+  reserveEmailContact,
+  isPhoneAlreadyContacted,
+  recordPhoneContacted,
+  reservePhoneContact,
+  normalizeEmail,
+  normalizePhone
 };

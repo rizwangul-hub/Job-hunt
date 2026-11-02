@@ -7,6 +7,16 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
+const {
+  reserveEmailContact,
+  isEmailAlreadyContacted,
+  recordEmailContacted,
+  reservePhoneContact,
+  isPhoneAlreadyContacted,
+  recordPhoneContacted,
+  normalizeEmail,
+  normalizePhone
+} = require('./universal-applier');
 
 console.log('======================================================');
 console.log('🤖 INITIALIZING RIZAGENT WHATSAPP AUTO-HUNTER BOT');
@@ -488,9 +498,23 @@ candidatePorts.forEach(port => {
 
 // Avoid processing identical messages repeatedly
 const processedMessageHashes = new Set();
+const processedMessageIds = new Set();
 
 async function processIncomingMessage(msg, preloadedChat = null) {
   try {
+    if (!msg) return;
+
+    // Deduplicate by unique WhatsApp message ID (blocks identical event fires)
+    const msgId = msg.id && (msg.id._serialized || msg.id.id);
+    if (msgId) {
+      if (processedMessageIds.has(msgId)) return;
+      processedMessageIds.add(msgId);
+      if (processedMessageIds.size > 2000) {
+        const first = processedMessageIds.values().next().value;
+        processedMessageIds.delete(first);
+      }
+    }
+
     const text = msg.body || msg.caption || '';
     if (!text || text.trim().length < 4) return;
 
@@ -855,10 +879,13 @@ Email: rizwangul535@gmail.com`;
       !targetEmail.includes('cloudgridsys.com') &&
       !targetEmail.includes('test.com')
     ) {
-      if (mailTransporter) {
+      // DEDUPLICATION SHIELD: Check & reserve synchronously to prevent race conditions
+      if (!reserveEmailContact(targetEmail, { role: title, company, channel: 'whatsapp-direct-email' })) {
+        console.log(`🛡️ [DEDUPLICATION SHIELD]: Recruiter email "${targetEmail}" has ALREADY received an application before. Skipping duplicate email!`);
+      } else if (mailTransporter) {
         try {
           await mailTransporter.sendMail({
-            from: process.env.SMTP_FROM || process.env.SMTP_USER,
+            from: `"${candidateName}" <${process.env.SMTP_FROM || process.env.SMTP_USER || 'rizwangul535@gmail.com'}>`,
             to: targetEmail,
             subject: `Application for ${title} — ${candidateName}`,
             text: pitch,
@@ -918,84 +945,89 @@ Email: rizwangul535@gmail.com`;
         cleanPhone = '92' + cleanPhone.substring(1);
       }
 
-      if (cleanPhone.length >= 10) {
-        try {
-          // Resolve number in WhatsApp store to prevent memoize id error
-          let recipientId = `${cleanPhone}@c.us`;
+      if (cleanPhone.length >= 10 && cleanPhone !== candidateAlertPhone) {
+        // DEDUPLICATION SHIELD: Never send duplicate WhatsApp pitch to the same recruiter
+        if (!reservePhoneContact(cleanPhone, { role: title, company, channel: 'whatsapp-direct-dm' })) {
+          console.log(`🛡️ [DEDUPLICATION SHIELD]: Recruiter phone "+${cleanPhone}" has ALREADY received a WhatsApp pitch. Skipping duplicate outreach!`);
+        } else {
           try {
-            const contactDetails = await client.getNumberId(cleanPhone);
-            if (contactDetails && contactDetails._serialized) {
-              recipientId = contactDetails._serialized;
+            // Resolve number in WhatsApp store to prevent memoize id error
+            let recipientId = `${cleanPhone}@c.us`;
+            try {
+              const contactDetails = await client.getNumberId(cleanPhone);
+              if (contactDetails && contactDetails._serialized) {
+                recipientId = contactDetails._serialized;
+              }
+            } catch (numErr) {}
+
+            // Obtain Chat object so WhatsApp Web internal memoize store has the valid id
+            let chat = null;
+            try {
+              chat = await client.getChatById(recipientId);
+            } catch (cErr) {}
+
+            if (chat) {
+              await chat.sendMessage(pitch);
+            } else {
+              await client.sendMessage(recipientId, pitch);
             }
-          } catch (numErr) {}
-
-          // Obtain Chat object so WhatsApp Web internal memoize store has the valid id
-          let chat = null;
-          try {
-            chat = await client.getChatById(recipientId);
-          } catch (cErr) {}
-
-          if (chat) {
-            await chat.sendMessage(pitch);
-          } else {
-            await client.sendMessage(recipientId, pitch);
-          }
-          console.log(`💬 [WHATSAPP OUTREACH] Pitch with Portfolio, GitHub & LinkedIn sent to recruiter (+${cleanPhone})!`);
-          if (candidateAlertPhone) {
-            try {
-              const alertMsg = `🔔 *[AUTONOMOUS WHATSAPP APPLICATION SENT]*\n\n` +
-                `🏢 *Company:* ${company}\n` +
-                `💼 *Role:* ${title}\n` +
-                `📊 *Match Score:* ${score}%\n` +
-                `💬 *Channel:* WhatsApp Recruiter DM (+${cleanPhone})\n` +
-                `📄 *CV:* Attached & Pitch Delivered\n` +
-                `📞 *Phone / WhatsApp:* +92 325 5984244\n` +
-                `⏰ *Time:* ${new Date().toLocaleTimeString()}`;
-              await client.sendMessage(`${candidateAlertPhone}@c.us`, alertMsg);
-              console.log(`📱 [ALERT DELIVERED] Private notification sent to candidate WhatsApp (+${candidateAlertPhone})`);
-            } catch (aErr) {}
-          }
-
-          // Send CV attachment with document flag and brief pause for chat creation
-          if (cvPath && fs.existsSync(cvPath)) {
-            // Give WhatsApp Web 2.5s to register newly created chat
-            await new Promise(r => setTimeout(r, 2500));
-            try {
-              // Ensure chat is initialized in WhatsApp store
+            console.log(`💬 [WHATSAPP OUTREACH] Pitch with Portfolio, GitHub & LinkedIn sent to recruiter (+${cleanPhone})!`);
+            if (candidateAlertPhone) {
               try {
-                if (client.pupPage) {
-                  await client.pupPage.evaluate(async (id) => {
-                    const c = await window.WWebJS.getChat(id, { getAsModel: true });
-                    if (c && window.Store && window.Store.Cmd) {
-                      window.Store.Cmd.openChatAt(c);
-                    }
-                  }, recipientId);
+                const alertMsg = `🔔 *[AUTONOMOUS WHATSAPP APPLICATION SENT]*\n\n` +
+                  `🏢 *Company:* ${company}\n` +
+                  `💼 *Role:* ${title}\n` +
+                  `📊 *Match Score:* ${score}%\n` +
+                  `💬 *Channel:* WhatsApp Recruiter DM (+${cleanPhone})\n` +
+                  `📄 *CV:* Attached & Pitch Delivered\n` +
+                  `📞 *Phone / WhatsApp:* +92 325 5984244\n` +
+                  `⏰ *Time:* ${new Date().toLocaleTimeString()}`;
+                await client.sendMessage(`${candidateAlertPhone}@c.us`, alertMsg);
+                console.log(`📱 [ALERT DELIVERED] Private notification sent to candidate WhatsApp (+${candidateAlertPhone})`);
+              } catch (aErr) {}
+            }
+
+            // Send CV attachment with document flag and brief pause for chat creation
+            if (cvPath && fs.existsSync(cvPath)) {
+              // Give WhatsApp Web 2.5s to register newly created chat
+              await new Promise(r => setTimeout(r, 2500));
+              try {
+                // Ensure chat is initialized in WhatsApp store
+                try {
+                  if (client.pupPage) {
+                    await client.pupPage.evaluate(async (id) => {
+                      const c = await window.WWebJS.getChat(id, { getAsModel: true });
+                      if (c && window.Store && window.Store.Cmd) {
+                        window.Store.Cmd.openChatAt(c);
+                      }
+                    }, recipientId);
+                  }
+                } catch (openErr) {}
+
+                const media = MessageMedia.fromFilePath(cvPath);
+                media.filename = `${candidateName} - Full Stack Developer CV.pdf`;
+                
+                if (chat) {
+                  await chat.sendMessage(media, { sendMediaAsDocument: true });
+                } else {
+                  await client.sendMessage(recipientId, media, { sendMediaAsDocument: true });
                 }
-              } catch (openErr) {}
-
-              const media = MessageMedia.fromFilePath(cvPath);
-              media.filename = `${candidateName} - Full Stack Developer CV.pdf`;
-              
-              if (chat) {
-                await chat.sendMessage(media, { sendMediaAsDocument: true });
-              } else {
-                await client.sendMessage(recipientId, media, { sendMediaAsDocument: true });
-              }
-              console.log(`📎 [WHATSAPP CV] Resume PDF successfully delivered to recruiter!`);
-            } catch (mediaErr) {
-              console.log(`⚠️ CV document notice: ${mediaErr.message}`);
-              // Fallback to sending media directly
-              try {
-                const mediaFallback = MessageMedia.fromFilePath(cvPath);
-                await client.sendMessage(recipientId, mediaFallback);
-                console.log(`📎 [WHATSAPP CV] Resume successfully delivered via direct media fallback!`);
-              } catch (fallbackErr) {
-                console.log(`ℹ️ Media fallback notice: ${fallbackErr.message}`);
+                console.log(`📎 [WHATSAPP CV] Resume PDF successfully delivered to recruiter!`);
+              } catch (mediaErr) {
+                console.log(`⚠️ CV document notice: ${mediaErr.message}`);
+                // Fallback to sending media directly
+                try {
+                  const mediaFallback = MessageMedia.fromFilePath(cvPath);
+                  await client.sendMessage(recipientId, mediaFallback);
+                  console.log(`📎 [WHATSAPP CV] Resume successfully delivered via direct media fallback!`);
+                } catch (fallbackErr) {
+                  console.log(`ℹ️ Media fallback notice: ${fallbackErr.message}`);
+                }
               }
             }
+          } catch (sendErr) {
+            console.log(`ℹ️ Recruiter WhatsApp direct notice: ${sendErr.message}`);
           }
-        } catch (sendErr) {
-          console.log(`ℹ️ Recruiter WhatsApp direct notice: ${sendErr.message}`);
         }
       }
     }
@@ -1098,36 +1130,41 @@ Email: rizwangul535@gmail.com`;
 
           // STEP B: If recruiter email found, IMMEDIATELY dispatch CV via Email
           if (discoveredEmails.length > 0 && mailTransporter) {
-            const targetRecruiterEmail = discoveredEmails[0];
-            try {
-              await mailTransporter.sendMail({
-                from: `"${candidateName}" <${process.env.SMTP_FROM || process.env.SMTP_USER || 'rizwangul535@gmail.com'}>`,
-                to: targetRecruiterEmail,
-                subject: `Application for ${resolvedTitle} — ${candidateName}`,
-                text: pitch,
-                attachments: cvPath && fs.existsSync(cvPath) 
-                  ? [{ filename: `Resume_${candidateName.replace(/\s+/g, '_')}.pdf`, path: cvPath }] 
-                  : []
-              });
-              console.log(`📧 [AUTO-APPLY EMAIL SENT] Resume.pdf emailed to recruiter at ${targetRecruiterEmail} for ${resolvedTitle} at ${resolvedCompany}!`);
+            const targetRecruiterEmail = discoveredEmails[0].toLowerCase().trim();
+            // DEDUPLICATION SHIELD: Check & reserve synchronously
+            if (!reserveEmailContact(targetRecruiterEmail, { role: resolvedTitle, company: resolvedCompany, channel: 'whatsapp-link-inspection' })) {
+              console.log(`🛡️ [DEDUPLICATION SHIELD]: Recruiter email "${targetRecruiterEmail}" has ALREADY received an application before. Skipping duplicate email!`);
+            } else {
+              try {
+                await mailTransporter.sendMail({
+                  from: `"${candidateName}" <${process.env.SMTP_FROM || process.env.SMTP_USER || 'rizwangul535@gmail.com'}>`,
+                  to: targetRecruiterEmail,
+                  subject: `Application for ${resolvedTitle} — ${candidateName}`,
+                  text: pitch,
+                  attachments: cvPath && fs.existsSync(cvPath) 
+                    ? [{ filename: `Resume_${candidateName.replace(/\s+/g, '_')}.pdf`, path: cvPath }] 
+                    : []
+                });
+                console.log(`📧 [AUTO-APPLY EMAIL SENT] Resume.pdf emailed to recruiter at ${targetRecruiterEmail} for ${resolvedTitle} at ${resolvedCompany}!`);
 
-              if (candidateAlertPhone) {
-                try {
-                  const alertMsg = `🎉 *[AUTONOMOUS JOB APPLICATION SENT]*\n\n` +
-                    `💼 *Position:* ${resolvedTitle}\n` +
-                    `🏢 *Company:* ${resolvedCompany}\n` +
-                    `📩 *Channel:* Recruiter Email (${targetRecruiterEmail})\n` +
-                    `🌐 *Job Link:* ${targetApplyUrl}\n` +
-                    `📄 *CV Attached:* Resume.pdf\n` +
-                    `📞 *Your Contact:* +92 325 5984244\n` +
-                    `⏰ *Time:* ${new Date().toLocaleTimeString()}\n\n` +
-                    `_RizAgent autonomously opened the link from WhatsApp and applied for you!_`;
-                  await client.sendMessage(`${candidateAlertPhone}@c.us`, alertMsg);
-                  console.log(`📱 [ALERT DELIVERED] Application confirmation sent to candidate WhatsApp (+${candidateAlertPhone})`);
-                } catch (aErr) {}
+                if (candidateAlertPhone) {
+                  try {
+                    const alertMsg = `🎉 *[AUTONOMOUS JOB APPLICATION SENT]*\n\n` +
+                      `💼 *Position:* ${resolvedTitle}\n` +
+                      `🏢 *Company:* ${resolvedCompany}\n` +
+                      `📩 *Channel:* Recruiter Email (${targetRecruiterEmail})\n` +
+                      `🌐 *Job Link:* ${targetApplyUrl}\n` +
+                      `📄 *CV Attached:* Resume.pdf\n` +
+                      `📞 *Your Contact:* +92 325 5984244\n` +
+                      `⏰ *Time:* ${new Date().toLocaleTimeString()}\n\n` +
+                      `_RizAgent autonomously opened the link from WhatsApp and applied for you!_`;
+                    await client.sendMessage(`${candidateAlertPhone}@c.us`, alertMsg);
+                    console.log(`📱 [ALERT DELIVERED] Application confirmation sent to candidate WhatsApp (+${candidateAlertPhone})`);
+                  } catch (aErr) {}
+                }
+              } catch (mailErr) {
+                console.log(`⚠️ Email notice: ${mailErr.message}`);
               }
-            } catch (mailErr) {
-              console.log(`⚠️ Email notice: ${mailErr.message}`);
             }
           }
 
@@ -1138,20 +1175,24 @@ Email: rizwangul535@gmail.com`;
               rPhone = '92' + rPhone.substring(1);
             }
             if (rPhone.length >= 10 && !rPhone.includes(candidateAlertPhone)) {
-              try {
-                const rJid = `${rPhone}@c.us`;
-                await client.sendMessage(rJid, pitch);
-                if (cvPath && fs.existsSync(cvPath)) {
-                  await new Promise(r => setTimeout(r, 2000));
-                  const media = MessageMedia.fromFilePath(cvPath);
-                  media.filename = `Resume_${candidateName.replace(/\s+/g, '_')}.pdf`;
-                  await client.sendMessage(rJid, media, { sendMediaAsDocument: true }).catch(async () => {
-                    await client.sendMessage(rJid, media);
-                  });
+              if (!reservePhoneContact(rPhone, { role: resolvedTitle, company: resolvedCompany, channel: 'whatsapp-link-dm' })) {
+                console.log(`🛡️ [DEDUPLICATION SHIELD]: Recruiter phone "+${rPhone}" has ALREADY received a WhatsApp pitch. Skipping duplicate outreach!`);
+              } else {
+                try {
+                  const rJid = `${rPhone}@c.us`;
+                  await client.sendMessage(rJid, pitch);
+                  if (cvPath && fs.existsSync(cvPath)) {
+                    await new Promise(r => setTimeout(r, 2000));
+                    const media = MessageMedia.fromFilePath(cvPath);
+                    media.filename = `Resume_${candidateName.replace(/\s+/g, '_')}.pdf`;
+                    await client.sendMessage(rJid, media, { sendMediaAsDocument: true }).catch(async () => {
+                      await client.sendMessage(rJid, media);
+                    });
+                  }
+                  console.log(`💬 [WHATSAPP OUTREACH] Pitch & Resume PDF sent to recruiter WhatsApp (+${rPhone})!`);
+                } catch (wpErr) {
+                  console.log(`ℹ️ WhatsApp outreach notice: ${wpErr.message}`);
                 }
-                console.log(`💬 [WHATSAPP OUTREACH] Pitch & Resume PDF sent to recruiter WhatsApp (+${rPhone})!`);
-              } catch (wpErr) {
-                console.log(`ℹ️ WhatsApp outreach notice: ${wpErr.message}`);
               }
             }
           }
@@ -1263,12 +1304,11 @@ Email: rizwangul535@gmail.com`;
   }
 }
 
-// Attach event listeners for real-time incoming messages
+// Attach event listener for real-time incoming messages ONLY
+// CRITICAL ARCHITECTURE FIX: Only listen to 'message' (incoming).
+// Listening to both 'message' and 'message_create' caused duplicate processing and duplicate email dispatch!
 client.on('message', async (msg) => {
-  await processIncomingMessage(msg);
-});
-
-client.on('message_create', async (msg) => {
+  if (msg.fromMe) return; // Never process messages sent by ourselves
   await processIncomingMessage(msg);
 });
 

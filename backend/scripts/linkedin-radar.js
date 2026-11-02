@@ -20,6 +20,11 @@ const http = require('http');
 const nodemailer = require('nodemailer');
 const mongoose = require('mongoose');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
+const {
+  reserveEmailContact,
+  isEmailAlreadyContacted,
+  recordEmailContacted
+} = require('./universal-applier');
 
 const CANDIDATE = {
   name: process.env.CANDIDATE_NAME || 'Rizwan Ullah',
@@ -199,6 +204,28 @@ async function sendApplicationEmail(toEmail, jobTitle, company, pitch) {
     return false;
   }
 
+  const cleanEmail = (toEmail || '').toLowerCase().trim();
+  if (!cleanEmail) return false;
+
+  // DUMMY DOMAIN SHIELD
+  if (
+    cleanEmail.includes('fintechmobile.io') ||
+    cleanEmail.includes('innovatex.io') ||
+    cleanEmail.includes('innovate.pk') ||
+    cleanEmail.includes('cloudgridsys.com') ||
+    cleanEmail.includes('example.com') ||
+    cleanEmail.includes('test.com')
+  ) {
+    console.log(`🛡️ [DUMMY DOMAIN SHIELD]: Suppressed real email send to mock address: ${cleanEmail}`);
+    return false;
+  }
+
+  // ATOMIC RESERVATION DEDUPLICATION SHIELD
+  if (!reserveEmailContact(cleanEmail, { role: jobTitle, company, channel: 'linkedin-public-radar' })) {
+    console.log(`🛡️ [DEDUPLICATION SHIELD]: Recruiter email "${cleanEmail}" has ALREADY received an application before. Skipping duplicate email!`);
+    return false;
+  }
+
   try {
     const attachments = [];
     if (cvPath && fs.existsSync(cvPath)) {
@@ -210,16 +237,16 @@ async function sendApplicationEmail(toEmail, jobTitle, company, pitch) {
 
     const info = await mailTransporter.sendMail({
       from: `"${CANDIDATE.name}" <${CANDIDATE.email}>`,
-      to: toEmail,
+      to: cleanEmail,
       subject: pitch.subject,
       text: pitch.body,
       attachments: attachments
     });
 
-    console.log(`✅ [EMAIL DISPATCHED] Sent application to ${toEmail} for "${jobTitle}" (MessageId: ${info.messageId})`);
+    console.log(`✅ [EMAIL DISPATCHED] Sent application to ${cleanEmail} for "${jobTitle}" (MessageId: ${info.messageId})`);
     return true;
   } catch (err) {
-    console.error(`❌ [EMAIL FAILED] Could not send to ${toEmail}: ${err.message}`);
+    console.error(`❌ [EMAIL FAILED] Could not send to ${cleanEmail}: ${err.message}`);
     return false;
   }
 }

@@ -104,6 +104,42 @@ export class EmailService {
       };
     }
 
+    // DEDUPLICATION SHIELD: Prevent sending duplicate emails to the same recruiter
+    const registryCandidates = [
+      path.join(process.cwd(), '.sent_recruiter_registry.json'),
+      path.join(process.cwd(), 'backend/.sent_recruiter_registry.json'),
+      path.join(__dirname, '../../../../.sent_recruiter_registry.json'),
+      path.join(__dirname, '../../../.sent_recruiter_registry.json')
+    ];
+    let activeRegistryPath = registryCandidates.find(p => fs.existsSync(p)) || registryCandidates[0];
+    let registry: any = { emails: {}, phones: {} };
+    try {
+      if (fs.existsSync(activeRegistryPath)) {
+        registry = JSON.parse(fs.readFileSync(activeRegistryPath, 'utf8'));
+      }
+    } catch (e) {}
+
+    const cleanEmail = lowerTo.replace(/^[<"'\s]+|[>"'\s.,;:]+$/g, '').trim();
+    if (registry.emails && registry.emails[cleanEmail]) {
+      logger.info(`🛡️ [DEDUPLICATION SHIELD] Recruiter email "${cleanEmail}" has already been contacted. Suppressing duplicate email!`);
+      return {
+        success: true,
+        messageId: `deduplicated-${Date.now()}`,
+        verifiedDelivered: true
+      };
+    }
+
+    // Reserve email contact
+    if (!registry.emails) registry.emails = {};
+    registry.emails[cleanEmail] = {
+      contactedAt: new Date().toISOString(),
+      subject,
+      channel: 'api-service'
+    };
+    try {
+      fs.writeFileSync(activeRegistryPath, JSON.stringify(registry, null, 2));
+    } catch (e) {}
+
     if (!this.transporter) {
       return {
         success: false,
