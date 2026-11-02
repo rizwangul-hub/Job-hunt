@@ -58,6 +58,6 @@ COPY backend/ ./
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PORT=8080
-EXPOSE 8080
+EXPOSE 8080 10000
 
 CMD ["node", "scripts/whatsapp-bot.js"]

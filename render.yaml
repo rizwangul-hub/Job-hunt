@@ -1,40 +1,34 @@
 services:
-  # 24/7 Autonomous Job Hunter & LinkedIn Public Radar
   - type: web
-    name: rizagent-cloud-hunter
-    runtime: docker
+    name: rizagent-job-hunter
+    env: docker
     dockerfilePath: ./Dockerfile
-    dockerContext: .
     plan: free
-    region: oregon
+    branch: main
+    healthCheckPath: /health
+    autoDeploy: true
     envVars:
       - key: PORT
         value: 10000
-      - key: NODE_ENV
-        value: production
+      - key: PUPPETEER_EXECUTABLE_PATH
+        value: /usr/bin/chromium
+      - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
+        value: "true"
       - key: CANDIDATE_NAME
         value: Rizwan Ullah
       - key: CANDIDATE_PHONE
         value: "+92 325 5984244"
-      - key: SMTP_HOST
-        value: smtp.gmail.com
-      - key: SMTP_PORT
-        value: 587
-      - key: SMTP_USER
-        value: rizwangul535@gmail.com
-      - key: SMTP_PASS
-        sync: false
       - key: CANDIDATE_PORTFOLIO
         value: https://full-stack-portfolio-coral.vercel.app
       - key: CANDIDATE_LINKEDIN
         value: https://www.linkedin.com/in/rizwanmerndev
       - key: CANDIDATE_GITHUB
         value: https://github.com/rizwangul-hub
-      - key: CANDIDATE_CALENDLY
-        value: https://calendly.com/rizwangul-dev
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
       - key: MONGODB_URI
         sync: false
-      - key: API_WEBHOOK_URL
-        value: https://backend-rose-two-72.vercel.app/api/webhooks/jobs
       - key: LINKEDIN_LI_AT
         sync: false
