@@ -299,7 +299,9 @@ setInterval(async () => {
 }, 30 * 60 * 1000);
 
 // Start lightweight web UI for scanning QR code directly in the browser
-const webPort = parseInt(process.env.PORT || '10000', 10);
+// On Linux/Docker/Render, always bind to 10000 to match Render port forwarding & health check
+const webPort = process.platform === 'linux' ? 10000 : parseInt(process.env.PORT || '10000', 10);
+const bootStartTime = Date.now();
 const server = http.createServer((req, res) => {
   if (req.url === '/health' || req.url === '/api/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -370,21 +372,32 @@ const server = http.createServer((req, res) => {
       </html>
     `);
   } else {
+    const elapsedSec = Math.floor((Date.now() - bootStartTime) / 1000);
     res.end(`
       <!DOCTYPE html>
       <html>
         <head>
           <title>Starting WhatsApp...</title>
-          <meta http-equiv="refresh" content="4">
+          <meta http-equiv="refresh" content="3">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
           <style>
-            body { background: #0b0f19; color: #fff; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; text-align: center; }
-            h2 { color: #38bdf8; }
-            p { color: #94a3b8; }
+            body { background: #0b0f19; color: #fff; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; text-align: center; padding: 20px; }
+            .card { background: #131b2e; border: 1px solid #334155; border-radius: 16px; padding: 28px; max-width: 420px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+            h2 { color: #38bdf8; font-size: 20px; margin-top: 0; }
+            p { color: #94a3b8; font-size: 14px; line-height: 1.6; }
+            .spinner { width: 40px; height: 40px; border: 4px solid #1e293b; border-top: 4px solid #38bdf8; border-radius: 50%; animation: spin 1s linear infinite; margin: 20px auto; }
+            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+            .badge { display: inline-block; background: rgba(56,189,248,0.15); color: #38bdf8; padding: 4px 12px; border-radius: 999px; font-size: 12px; margin-bottom: 12px; }
           </style>
         </head>
         <body>
-          <h2>⏳ ${botStatus}</h2>
-          <p>Please wait a few seconds. The page will refresh automatically...</p>
+          <div class="card">
+            <div class="badge">⏱️ Initializing Engine (${elapsedSec}s)</div>
+            <div class="spinner"></div>
+            <h2>${botStatus}</h2>
+            <p>Starting Chromium browser and downloading WhatsApp Web session... The QR code will appear right here in <strong>~10-20 seconds</strong>.</p>
+            <p style="font-size: 12px; color: #64748b;">Auto-refreshing every 3s. Please keep this tab open.</p>
+          </div>
         </body>
       </html>
     `);
