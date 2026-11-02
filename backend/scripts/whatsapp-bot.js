@@ -253,56 +253,82 @@ client.on('ready', () => {
 
 // =====================================================================
 // AUTONOMOUS OMNI-PLATFORM RADAR DAEMON (LinkedIn, Social, Indeed)
-// Runs 24/7 independently of WhatsApp status (Email & Easy Apply always active!)
+// In cloud environment (512MB RAM), radars are activated after WhatsApp
+// finishes initial boot to prevent Out-Of-Memory (OOM) container crashes.
 // =====================================================================
 function getLiveWhatsAppClient() {
   return isOnline ? client : null;
 }
 
-// 1. LinkedIn Public Radar (Runs at boot + 60s, then every 35 mins)
-setTimeout(() => {
-  try {
-    const { scanLinkedInPublicJobs } = require('./linkedin-radar');
-    scanLinkedInPublicJobs().catch(() => null);
-  } catch (rErr) {}
-}, 60000);
+let radarsScheduled = false;
+function scheduleRadars() {
+  if (radarsScheduled) return;
+  radarsScheduled = true;
+  console.log('🚀 Activating Autonomous Radars (LinkedIn, Social, Indeed)...');
 
-setInterval(async () => {
-  try {
-    const { scanLinkedInPublicJobs } = require('./linkedin-radar');
-    await scanLinkedInPublicJobs().catch(() => null);
-  } catch (rErr) {}
-}, 35 * 60 * 1000);
+  // 1. LinkedIn Public Radar
+  setTimeout(async () => {
+    try {
+      const { scanLinkedInPublicJobs } = require('./linkedin-radar');
+      await scanLinkedInPublicJobs().catch(() => null);
+    } catch (rErr) {}
+  }, 10000);
 
-// 2. Facebook & Instagram Social Radar (Runs at boot + 90s, then every 30 mins)
-setTimeout(() => {
-  try {
-    const { scanSocialTechJobs } = require('./social-radar');
-    scanSocialTechJobs(getLiveWhatsAppClient()).catch(() => null);
-  } catch (sErr) {}
-}, 90000);
+  setInterval(async () => {
+    try {
+      const { scanLinkedInPublicJobs } = require('./linkedin-radar');
+      await scanLinkedInPublicJobs().catch(() => null);
+    } catch (rErr) {}
+  }, 35 * 60 * 1000);
 
-setInterval(async () => {
-  try {
-    const { scanSocialTechJobs } = require('./social-radar');
-    await scanSocialTechJobs(getLiveWhatsAppClient()).catch(() => null);
-  } catch (sErr) {}
-}, 30 * 60 * 1000);
+  // 2. Facebook & Instagram Social Radar
+  setTimeout(async () => {
+    try {
+      const { scanSocialTechJobs } = require('./social-radar');
+      await scanSocialTechJobs(getLiveWhatsAppClient()).catch(() => null);
+    } catch (sErr) {}
+  }, 60000);
 
-// 3. Indeed Autonomous Radar (Runs at boot + 120s, then every 30 mins)
-setTimeout(() => {
-  try {
-    const { scanIndeedJobs } = require('./indeed-hunter');
-    scanIndeedJobs(getLiveWhatsAppClient()).catch(() => null);
-  } catch (iErr) {}
-}, 120000);
+  setInterval(async () => {
+    try {
+      const { scanSocialTechJobs } = require('./social-radar');
+      await scanSocialTechJobs(getLiveWhatsAppClient()).catch(() => null);
+    } catch (sErr) {}
+  }, 30 * 60 * 1000);
 
-setInterval(async () => {
-  try {
-    const { scanIndeedJobs } = require('./indeed-hunter');
-    await scanIndeedJobs(getLiveWhatsAppClient()).catch(() => null);
-  } catch (iErr) {}
-}, 30 * 60 * 1000);
+  // 3. Indeed Autonomous Radar
+  setTimeout(async () => {
+    try {
+      const { scanIndeedJobs } = require('./indeed-hunter');
+      await scanIndeedJobs(getLiveWhatsAppClient()).catch(() => null);
+    } catch (iErr) {}
+  }, 120000);
+
+  setInterval(async () => {
+    try {
+      const { scanIndeedJobs } = require('./indeed-hunter');
+      await scanIndeedJobs(getLiveWhatsAppClient()).catch(() => null);
+    } catch (iErr) {}
+  }, 30 * 60 * 1000);
+}
+
+// In local development (Windows), start radars immediately
+if (process.platform === 'win32') {
+  scheduleRadars();
+} else {
+  // On Render/Linux (512MB RAM limit), wait for WhatsApp ready or 5-min grace period
+  client.once('ready', () => {
+    console.log('✅ WhatsApp ready! Starting autonomous background radars...');
+    scheduleRadars();
+  });
+
+  setTimeout(() => {
+    if (!radarsScheduled) {
+      console.log('ℹ️ 5-minute boot grace period elapsed. Starting autonomous radars in standalone mode...');
+      scheduleRadars();
+    }
+  }, 5 * 60 * 1000);
+}
 
 // Start lightweight web UI for scanning QR code directly in the browser
 const bootStartTime = Date.now();
