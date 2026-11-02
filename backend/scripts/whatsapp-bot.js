@@ -48,14 +48,21 @@ if (cvPath) {
 console.log('⏳ Starting Chromium browser and connecting to WhatsApp Web...');
 console.log('⏳ Please wait ~5-10 seconds for the QR code to appear...\n');
 
+// On Linux / Docker container, purge any stale auth folder on startup to guarantee a clean fresh QR
+if (process.platform === 'linux') {
+  try {
+    const staleAuth = path.join(__dirname, '../.wwebjs_auth');
+    if (fs.existsSync(staleAuth)) {
+      fs.rmSync(staleAuth, { recursive: true, force: true });
+      console.log('🧹 Purged stale session directory for fresh QR code generation');
+    }
+  } catch (cleanErr) {}
+}
+
 const client = new Client({
   authStrategy: new LocalAuth({
     dataPath: path.join(__dirname, '../.wwebjs_auth')
   }),
-  webVersionCache: {
-    type: 'remote',
-    remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1052640630-alpha.html'
-  },
   puppeteer: {
     headless: true,
     executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || (puppeteer.executablePath ? puppeteer.executablePath() : undefined),
@@ -66,19 +73,7 @@ const client = new Client({
       '--disable-accelerated-2d-canvas',
       '--no-first-run',
       '--no-zygote',
-      '--disable-gpu',
-      '--disable-extensions',
-      '--disable-default-apps',
-      '--disable-sync',
-      '--disable-translate',
-      '--hide-scrollbars',
-      '--metrics-recording-only',
-      '--mute-audio',
-      '--no-default-browser-check',
-      '--disable-web-security',
-      '--disable-features=IsolateOrigins,site-per-process',
-      '--js-flags=--max-old-space-size=128',
-      '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+      '--disable-gpu'
     ]
   },
   userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
@@ -122,6 +117,7 @@ client.on('loading_screen', (percent, message) => {
 });
 
 client.on('qr', async (qr) => {
+  console.log('⚡ [SUCCESS] QR Code emitted by WhatsApp Web! Rendering...');
   try {
     currentQrDataUrl = await QRCode.toDataURL(qr, { scale: 8, margin: 2 });
     currentQrBuffer = await QRCode.toBuffer(qr, { scale: 8, margin: 2 });
@@ -1001,7 +997,38 @@ client.on('message_create', async (msg) => {
   await processIncomingMessage(msg);
 });
 
-client.initialize();
+client.initialize().catch(err => {
+  console.error('❌ Error during client.initialize():', err.message);
+  botStatus = `Error starting WhatsApp: ${err.message}`;
+});
+
+// Diagnostic watchdog: Logs exact WhatsApp Web DOM state if QR doesn't emit within 35 seconds
+setTimeout(async () => {
+  if (!currentQrDataUrl && !isOnline) {
+    console.log('⚠️ [DIAGNOSTIC] WhatsApp Web has not emitted QR after 35s. Checking Chromium DOM...');
+    if (client.pupPage && !client.pupPage.isClosed()) {
+      try {
+        const title = await client.pupPage.title();
+        const pageUrl = client.pupPage.url();
+        console.log(`📄 Chromium page title: "${title}" | URL: "${pageUrl}"`);
+        const bodySnippet = await client.pupPage.evaluate(() => {
+          return document.body ? document.body.innerText.substring(0, 300) : 'no body';
+        });
+        console.log(`📄 Page body text: ${bodySnippet.replace(/\n/g, ' ')}`);
+        
+        // Check if QR code canvas or container element exists in DOM
+        const hasCanvas = await client.pupPage.evaluate(() => {
+          return Boolean(document.querySelector('canvas') || document.querySelector('div[data-ref]'));
+        });
+        console.log(`📄 QR canvas/ref found in DOM: ${hasCanvas}`);
+      } catch (diagErr) {
+        console.log('ℹ️ Diagnostic read notice:', diagErr.message);
+      }
+    } else {
+      console.log('ℹ️ Chromium pupPage not yet attached or already closed.');
+    }
+  }
+}, 35000);
 
 process.on('SIGINT', async () => {
   console.log('\n🛑 Shutting down WhatsApp bot cleanly...');
