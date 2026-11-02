@@ -108,11 +108,19 @@ client.on('qr', async (qr) => {
     currentQrDataUrl = await QRCode.toDataURL(qr, { scale: 8, margin: 2 });
     botStatus = 'Scan QR code with your phone';
     const qrBuffer = await QRCode.toBuffer(qr, { scale: 8, margin: 2 });
-    const artifactPath = 'C:\\Users\\HP\\.gemini\\antigravity\\brain\\b6adcc71-ddeb-4d0a-bb2f-4cd5e298dc7a\\whatsapp-qr.png';
-    fs.writeFileSync(artifactPath, qrBuffer);
-    fs.writeFileSync(path.join(__dirname, '../whatsapp-qr.png'), qrBuffer);
+    if (process.platform === 'win32') {
+      try {
+        const artifactPath = 'C:\\Users\\HP\\.gemini\\antigravity\\brain\\b6adcc71-ddeb-4d0a-bb2f-4cd5e298dc7a\\whatsapp-qr.png';
+        fs.writeFileSync(artifactPath, qrBuffer);
+      } catch (e) {}
+    }
+    try {
+      fs.writeFileSync(path.join(__dirname, '../whatsapp-qr.png'), qrBuffer);
+    } catch (e) {}
     console.log('📸 Updated fresh whatsapp-qr.png for instant chat scanning');
-  } catch (e) {}
+  } catch (e) {
+    console.error('QR generation notice:', e.message);
+  }
 
   console.log('\n================================================================');
   console.log('📱 SCAN THIS QR CODE WITH YOUR WHATSAPP TO LINK AUTO-HUNTER:');
