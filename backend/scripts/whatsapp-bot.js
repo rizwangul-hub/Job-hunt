@@ -48,13 +48,13 @@ if (cvPath) {
 console.log('⏳ Starting Chromium browser and connecting to WhatsApp Web...');
 console.log('⏳ Please wait ~5-10 seconds for the QR code to appear...\n');
 
-// On Linux / Docker container, purge any stale auth folder on startup to guarantee a clean fresh QR
-if (process.platform === 'linux') {
+// On Linux / Docker container, only purge auth if explicitly requested via PURGE_AUTH flag
+if (process.platform === 'linux' && process.env.PURGE_AUTH === 'true') {
   try {
     const staleAuth = path.join(__dirname, '../.wwebjs_auth');
     if (fs.existsSync(staleAuth)) {
       fs.rmSync(staleAuth, { recursive: true, force: true });
-      console.log('🧹 Purged stale session directory for fresh QR code generation');
+      console.log('🧹 Purged session directory per PURGE_AUTH flag');
     }
   } catch (cleanErr) {}
 }
@@ -569,6 +569,14 @@ async function processIncomingMessage(msg, preloadedChat = null) {
       lower.includes('hiring') || 
       lower.includes('job') || 
       lower.includes('developer') || 
+      lower.includes('role') || 
+      lower.includes('roles') || 
+      lower.includes('position') || 
+      lower.includes('positions') || 
+      lower.includes('company') || 
+      lower.includes('classified-jobs') || 
+      lower.includes('read job details') || 
+      lower.includes('hrpostingpartner') || 
       lower.includes('looking for') || 
       lower.includes('vacancy') || 
       lower.includes('intern') || 
@@ -607,8 +615,9 @@ async function processIncomingMessage(msg, preloadedChat = null) {
 
     if (!isHiring) return;
 
-    // Simple hash to avoid spamming the same forward (allows re-testing)
-    const hash = text.substring(0, 50).toLowerCase();
+    // Deduplication check per post
+    const linkInPost = (text.match(/https?:\/\/[^\s"'<>]+/i) || [''])[0];
+    const hash = (text.substring(0, 60) + linkInPost).toLowerCase().replace(/\s+/g, '');
     const isTest = lower.includes('test');
     if (processedMessageHashes.has(hash) && !isTest) {
       console.log(`ℹ️ [Skipped Duplicate] This job was already processed recently.`);
@@ -621,31 +630,45 @@ async function processIncomingMessage(msg, preloadedChat = null) {
     console.log(`[🎯 JOB POST IDENTIFIED] In "${groupName}"`);
     console.log(`Snippet: "${text.substring(0, 140).replace(/\n/g, ' ')}..."`);
 
-    // Ingest into RizAgent
-    const apiUrl = process.env.API_WEBHOOK_URL || 'https://backend-rose-two-72.vercel.app/api/webhooks/jobs';
-    const res = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        rawText: text,
-        text: text,
-        content: text,
-        channel: 'whatsapp',
-        groupName: groupName
-      })
-    });
+    // Parse role and company directly from text as robust primary/fallback
+    const compMatch = text.match(/🏢?\s*Company\s*:\s*([^\n\r]+)/i);
+    let extractedCompany = compMatch ? compMatch[1].trim() : null;
 
-    const data = await res.json();
-    if (!data.success) {
-      console.log(`ℹ️ [Notice] ${data.message || 'Job ignored or duplicate'}`);
-      console.log(`------------------------------------------------------\n`);
-      return;
+    let extractedRole = null;
+    const roleMatch = text.match(/Role\s*:\s*([^\n\r]+)/i);
+    if (roleMatch && !roleMatch[1].toLowerCase().includes('roles:')) {
+      extractedRole = roleMatch[1].trim();
+    } else {
+      const starRoles = [...text.matchAll(/⭐\s*([^\n\r]+)/g)].map(m => m[1].trim());
+      const matchedDevRole = starRoles.find(r => /software|developer|engineer|web|mern|react|node|frontend|backend/i.test(r));
+      if (matchedDevRole) extractedRole = matchedDevRole;
+      else if (starRoles.length > 0) extractedRole = starRoles[0];
     }
 
-    const job = data.job || {};
-    const score = data.matchScore || job.matchScore || 0;
-    const title = job.title || 'Professional Role';
-    const company = job.company || 'Team';
+    // Ingest into RizAgent webhook (non-blocking)
+    const apiUrl = process.env.API_WEBHOOK_URL || 'https://backend-rose-two-72.vercel.app/api/webhooks/jobs';
+    let data = { success: false };
+    try {
+      const res = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rawText: text,
+          text: text,
+          content: text,
+          channel: 'whatsapp',
+          groupName: groupName
+        })
+      });
+      data = await res.json();
+    } catch (apiErr) {
+      console.log(`ℹ️ API Webhook notice: ${apiErr.message}`);
+    }
+
+    const job = (data && data.job) || {};
+    const score = (data && (data.matchScore || job.matchScore)) || 90;
+    const title = extractedRole || job.title || 'Software Developer';
+    const company = (extractedCompany && extractedCompany !== 'Confidential Employer') ? extractedCompany : (job.company || 'Tech Team');
 
     console.log(`🎯 Evaluated: "${title}" at "${company}"`);
     console.log(`📊 Profile Match Score: ${score}%`);
@@ -871,7 +894,7 @@ Email: rizwangul535@gmail.com`;
       }
     }
 
-    // 3. AUTO-APPLY TO CAREER LINKS & APPLICATION PAGES
+    // 3. AUTONOMOUS LINK INSPECTION & AUTO-APPLY
     const urlMatches = text.match(/https?:\/\/[^\s"'<>]+/gi);
     if (urlMatches && urlMatches.length > 0) {
       const externalUrls = urlMatches.filter(u => {
@@ -891,120 +914,195 @@ Email: rizwangul535@gmail.com`;
                !l.includes('linkedin.com/in');
       });
 
-      if (externalUrls.length > 0) {
-        const targetApplyUrl = externalUrls[0].replace(/[),.]+$/, '');
-        console.log(`🌐 [APPLICATION LINK FOUND]: ${targetApplyUrl}`);
-        console.log(`🤖 [AUTO-APPLY] Opening career page in background browser to apply...`);
+      for (const rawUrl of externalUrls) {
+        const targetApplyUrl = rawUrl.replace(/[),.]+$/, '').trim();
+        console.log(`🌐 [AUTONOMOUS LINK DETECTED]: ${targetApplyUrl}`);
+        console.log(`🔍 [INSPECTING PAGE FOR RECRUITER CONTACTS & APPLICATION FORMS]...`);
 
-        (async () => {
-          let b = null;
+        try {
+          // STEP A: Ultra-Fast, 0MB RAM Native HTTP Fetch & Parser
+          let html = '';
           try {
-            b = await puppeteer.launch({
-              headless: true,
-              args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu']
+            const pageRes = await fetch(targetApplyUrl, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+              },
+              redirect: 'follow',
+              signal: AbortSignal.timeout(15000)
             });
-            const p = await b.newPage();
-            await p.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-            await p.goto(targetApplyUrl, { waitUntil: 'domcontentloaded', timeout: 25000 });
-
-            const pageData = await p.evaluate(() => {
-              const text = document.body ? document.body.innerText : '';
-              const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/g;
-              const emails = text.match(emailRegex) || [];
-              const mailtoLinks = Array.from(document.querySelectorAll('a[href^="mailto:"]')).map(a => a.href.replace('mailto:', '').split('?')[0]);
-              const allEmails = Array.from(new Set([...emails, ...mailtoLinks])).filter(e => !e.includes('example.com') && !e.includes('domain.com') && !e.includes('.png'));
-
-              const hasForm = document.querySelector('form') !== null;
-              const hasEmailInput = document.querySelector('input[type="email"], input[name*="email" i], input[id*="email" i]') !== null;
-              const hasFileInput = document.querySelector('input[type="file"]') !== null;
-
-              return {
-                title: document.title,
-                emails: allEmails,
-                hasForm,
-                hasEmailInput,
-                hasFileInput
-              };
-            });
-
-            console.log(`📄 Page Title: "${pageData.title}"`);
-
-            // If a recruiter email was discovered on the application page:
-            if (pageData.emails.length > 0 && mailTransporter) {
-              const discoveredEmail = pageData.emails[0];
-              console.log(`🎯 [RECRUITER EMAIL DISCOVERED ON PAGE]: ${discoveredEmail}`);
-              try {
-                await mailTransporter.sendMail({
-                  from: process.env.SMTP_FROM || process.env.SMTP_USER,
-                  to: discoveredEmail,
-                  subject: `Application for ${title} — ${candidateName}`,
-                  text: pitch,
-                  attachments: cvPath && fs.existsSync(cvPath) 
-                    ? [{ filename: `${candidateName} - Full Stack Developer CV.pdf`, path: cvPath }] 
-                    : []
-                });
-                console.log(`📧 [AUTO-APPLY EMAIL SENT] Application with CV PDF emailed to discovered recruiter: ${discoveredEmail}`);
-              } catch (mErr) {
-                console.log(`⚠️ Email notice: ${mErr.message}`);
-              }
-            }
-
-            // If an online application form is detected:
-            if (pageData.hasForm && pageData.hasEmailInput) {
-              console.log(`📝 [APPLICATION FORM DETECTED] Auto-filling profile and attaching CV...`);
-              try {
-                await p.evaluate(({ name, email, port, git, link }) => {
-                  function setVal(sel, val) {
-                    const el = document.querySelector(sel);
-                    if (el) {
-                      el.value = val;
-                      el.dispatchEvent(new Event('input', { bubbles: true }));
-                      el.dispatchEvent(new Event('change', { bubbles: true }));
-                    }
-                  }
-                  setVal('input[name*="name" i], input[id*="name" i], input[placeholder*="name" i]', name);
-                  setVal('input[type="email"], input[name*="email" i], input[id*="email" i]', email);
-                  setVal('input[type="tel"], input[name*="phone" i], input[id*="phone" i]', '03179500901');
-                  setVal('input[name*="portfolio" i], input[id*="portfolio" i]', port);
-                  setVal('input[name*="github" i], input[id*="github" i]', git);
-                  setVal('input[name*="linkedin" i], input[id*="linkedin" i]', link);
-                }, {
-                  name: candidateName,
-                  email: process.env.SMTP_USER || 'rizwangul535@gmail.com',
-                  port: portfolio,
-                  git: github,
-                  link: linkedin
-                });
-
-                if (cvPath && fs.existsSync(cvPath) && pageData.hasFileInput) {
-                  const fileInput = await p.$('input[type="file"]');
-                  if (fileInput) {
-                    await fileInput.uploadFile(cvPath);
-                    console.log(`📎 [FORM CV UPLOADED] ${path.basename(cvPath)} attached!`);
-                  }
-                }
-
-                const submitBtn = await p.$('button[type="submit"], input[type="submit"], button.submit, form button');
-                if (submitBtn) {
-                  await Promise.all([
-                    p.waitForNavigation({ timeout: 10000 }).catch(() => {}),
-                    submitBtn.click()
-                  ]);
-                  console.log(`🚀 [FORM SUBMITTED] Application successfully submitted on ${targetApplyUrl}!`);
-                } else {
-                  console.log(`✅ [FORM FILLED] All fields filled! Review at ${targetApplyUrl}`);
-                }
-              } catch (fErr) {
-                console.log(`ℹ️ Form fill notice: ${fErr.message}`);
-              }
-            }
-
-            await b.close();
-          } catch (autoErr) {
-            if (b) await b.close();
-            console.log(`ℹ️ Auto-apply notice: ${autoErr.message}`);
+            html = await pageRes.text();
+          } catch (fErr) {
+            console.log(`ℹ️ Fetch notice for ${targetApplyUrl}: ${fErr.message}`);
           }
-        })();
+
+          // Extract Schema.org JobPosting if present (e.g. hrpostingpartner, linkedin, indeed)
+          let schemaJob = null;
+          const jsonLdMatches = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+          if (jsonLdMatches) {
+            for (const m of jsonLdMatches) {
+              try {
+                const jsonContent = m.replace(/<script[^>]*>|<\/script>/gi, '').trim();
+                const parsed = JSON.parse(jsonContent);
+                if (parsed['@type'] === 'JobPosting') {
+                  schemaJob = parsed;
+                  break;
+                }
+              } catch (e) {}
+            }
+          }
+
+          // Extract all emails from page content
+          const rawEmails = html.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
+          const discoveredEmails = [...new Set(rawEmails.map(e => {
+            let clean = e.toLowerCase().trim();
+            clean = clean.replace(/^(u003e|mailto:)/, '');
+            clean = clean.replace(/[.,;:)>]+$/, '');
+            return clean;
+          }))].filter(e => {
+            return !e.includes('example.com') && 
+                   !e.includes('w3.org') && 
+                   !e.includes('schema.org') && 
+                   !e.includes('sentry') && 
+                   !e.includes('domain.com') && 
+                   !e.includes('cloudflare.com') && 
+                   !/\.(png|jpg|jpeg|gif|webp|svg)$/i.test(e);
+          });
+
+          // Extract WhatsApp or Recruiter Phone
+          const waLinkMatch = html.match(/(?:wa\.me\/|api\.whatsapp\.com\/send\?phone=)(\d+)/i);
+          const pagePhoneMatches = html.match(/(?:\+?92|0092|0)3\d{2}[-\s]?\d{7}/g) || [];
+          const discoveredPhones = [...new Set([
+            ...(waLinkMatch ? [waLinkMatch[1]] : []),
+            ...pagePhoneMatches.map(p => p.replace(/[^\d]/g, ''))
+          ])];
+
+          const resolvedTitle = (schemaJob && schemaJob.title) || title || 'Software Developer';
+          const resolvedCompany = (schemaJob && schemaJob.hiringOrganization && schemaJob.hiringOrganization.name && schemaJob.hiringOrganization.name !== 'Confidential Employer')
+            ? schemaJob.hiringOrganization.name
+            : company;
+
+          console.log(`📄 Discovered Job: "${resolvedTitle}" at "${resolvedCompany}"`);
+          if (discoveredEmails.length > 0) console.log(`🎯 Recruiter Emails: ${discoveredEmails.join(', ')}`);
+          if (discoveredPhones.length > 0) console.log(`📞 Recruiter Phone/WhatsApp: ${discoveredPhones.join(', ')}`);
+
+          // STEP B: If recruiter email found, IMMEDIATELY dispatch CV via Email
+          if (discoveredEmails.length > 0 && mailTransporter) {
+            const targetRecruiterEmail = discoveredEmails[0];
+            try {
+              await mailTransporter.sendMail({
+                from: `"${candidateName}" <${process.env.SMTP_FROM || process.env.SMTP_USER || 'rizwangul535@gmail.com'}>`,
+                to: targetRecruiterEmail,
+                subject: `Application for ${resolvedTitle} — ${candidateName}`,
+                text: pitch,
+                attachments: cvPath && fs.existsSync(cvPath) 
+                  ? [{ filename: `Resume_${candidateName.replace(/\s+/g, '_')}.pdf`, path: cvPath }] 
+                  : []
+              });
+              console.log(`📧 [AUTO-APPLY EMAIL SENT] Resume.pdf emailed to recruiter at ${targetRecruiterEmail} for ${resolvedTitle} at ${resolvedCompany}!`);
+
+              if (candidateAlertPhone) {
+                try {
+                  const alertMsg = `🎉 *[AUTONOMOUS JOB APPLICATION SENT]*\n\n` +
+                    `💼 *Position:* ${resolvedTitle}\n` +
+                    `🏢 *Company:* ${resolvedCompany}\n` +
+                    `📩 *Channel:* Recruiter Email (${targetRecruiterEmail})\n` +
+                    `🌐 *Job Link:* ${targetApplyUrl}\n` +
+                    `📄 *CV Attached:* Resume.pdf\n` +
+                    `📞 *Your Contact:* +92 325 5984244\n` +
+                    `⏰ *Time:* ${new Date().toLocaleTimeString()}\n\n` +
+                    `_RizAgent autonomously opened the link from WhatsApp and applied for you!_`;
+                  await client.sendMessage(`${candidateAlertPhone}@c.us`, alertMsg);
+                  console.log(`📱 [ALERT DELIVERED] Application confirmation sent to candidate WhatsApp (+${candidateAlertPhone})`);
+                } catch (aErr) {}
+              }
+            } catch (mailErr) {
+              console.log(`⚠️ Email notice: ${mailErr.message}`);
+            }
+          }
+
+          // STEP C: If recruiter WhatsApp / phone found, send direct outreach
+          if (discoveredPhones.length > 0) {
+            let rPhone = discoveredPhones[0];
+            if (rPhone.startsWith('03') && rPhone.length === 11) {
+              rPhone = '92' + rPhone.substring(1);
+            }
+            if (rPhone.length >= 10 && !rPhone.includes(candidateAlertPhone)) {
+              try {
+                const rJid = `${rPhone}@c.us`;
+                await client.sendMessage(rJid, pitch);
+                if (cvPath && fs.existsSync(cvPath)) {
+                  await new Promise(r => setTimeout(r, 2000));
+                  const media = MessageMedia.fromFilePath(cvPath);
+                  media.filename = `Resume_${candidateName.replace(/\s+/g, '_')}.pdf`;
+                  await client.sendMessage(rJid, media, { sendMediaAsDocument: true }).catch(async () => {
+                    await client.sendMessage(rJid, media);
+                  });
+                }
+                console.log(`💬 [WHATSAPP OUTREACH] Pitch & Resume PDF sent to recruiter WhatsApp (+${rPhone})!`);
+              } catch (wpErr) {
+                console.log(`ℹ️ WhatsApp outreach notice: ${wpErr.message}`);
+              }
+            }
+          }
+
+          // STEP D: If NO email found AND page contains an online application form, fill via existing Chromium instance
+          const hasFormIndicator = html.includes('<form') && (html.includes('type="file"') || html.includes('type="email"') || html.includes('name="email"'));
+          if (discoveredEmails.length === 0 && hasFormIndicator && client.pupBrowser) {
+            console.log(`📝 [INTERACTIVE FORM DETECTED] Opening tab in existing browser to submit application...`);
+            let formPage = null;
+            try {
+              formPage = await client.pupBrowser.newPage();
+              await formPage.goto(targetApplyUrl, { waitUntil: 'domcontentloaded', timeout: 25000 });
+              await formPage.evaluate(({ name, email, phone, port, git, link }) => {
+                function setVal(sel, val) {
+                  const el = document.querySelector(sel);
+                  if (el) {
+                    el.value = val;
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                  }
+                }
+                setVal('input[name*="name" i], input[id*="name" i], input[placeholder*="name" i]', name);
+                setVal('input[type="email"], input[name*="email" i], input[id*="email" i]', email);
+                setVal('input[type="tel"], input[name*="phone" i], input[id*="phone" i]', phone);
+                setVal('input[name*="portfolio" i], input[id*="portfolio" i]', port);
+                setVal('input[name*="github" i], input[id*="github" i]', git);
+                setVal('input[name*="linkedin" i], input[id*="linkedin" i]', link);
+              }, {
+                name: candidateName,
+                email: process.env.SMTP_USER || 'rizwangul535@gmail.com',
+                phone: candidateAlertPhone || '03255984244',
+                port: portfolio,
+                git: github,
+                link: linkedin
+              });
+
+              if (cvPath && fs.existsSync(cvPath)) {
+                const fileInput = await formPage.$('input[type="file"]');
+                if (fileInput) {
+                  await fileInput.uploadFile(cvPath);
+                  console.log(`📎 [FORM CV UPLOADED] Resume.pdf attached to career form!`);
+                }
+              }
+
+              const submitBtn = await formPage.$('button[type="submit"], input[type="submit"], button.submit, form button');
+              if (submitBtn) {
+                await Promise.all([
+                  formPage.waitForNavigation({ timeout: 10000 }).catch(() => {}),
+                  submitBtn.click()
+                ]);
+                console.log(`🚀 [FORM SUBMITTED] Application successfully submitted on ${targetApplyUrl}!`);
+              }
+            } catch (formErr) {
+              console.log(`ℹ️ Form autofill notice: ${formErr.message}`);
+            } finally {
+              if (formPage) await formPage.close().catch(() => {});
+            }
+          }
+        } catch (linkErr) {
+          console.log(`ℹ️ Link inspection notice for ${targetApplyUrl}: ${linkErr.message}`);
+        }
       }
     }
 
