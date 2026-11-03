@@ -18,6 +18,10 @@ export async function connectDB(): Promise<void> {
       logger.info(`Attempting connection to MongoDB: ${targetUri.replace(/:\/\/.*@/, '://***@')}`);
       await mongoose.connect(targetUri, {
         serverSelectionTimeoutMS: 5000,
+        maxPoolSize: isServerless ? 10 : 20, // Prevents exceeding MongoDB Atlas M0 500 connection limit
+        minPoolSize: 1,
+        maxIdleTimeMS: 30000, // Closes idle connections after 30 seconds
+        socketTimeoutMS: 45000,
       });
       logger.info('Connected to MongoDB database successfully.');
       return;
