@@ -6,7 +6,14 @@ let memoryServer: any = null;
 
 export async function connectDB(): Promise<void> {
   // If already connected, reuse connection (vital for serverless lambdas)
-  if (mongoose.connection.readyState >= 1) {
+  if (mongoose.connection.readyState === 1) {
+    return;
+  }
+  if (mongoose.connection.readyState === 2) {
+    // Already connecting, wait for connection to open instead of creating another connection
+    await new Promise<void>((resolve) => {
+      mongoose.connection.once('open', () => resolve());
+    });
     return;
   }
 
