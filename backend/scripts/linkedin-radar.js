@@ -23,7 +23,8 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const {
   reserveEmailContact,
   isEmailAlreadyContacted,
-  recordEmailContacted
+  recordEmailContacted,
+  isRelevantTechJobOrProject
 } = require('./universal-applier');
 
 const CANDIDATE = {
@@ -199,6 +200,13 @@ Phone: ${CANDIDATE.phone}`
 
 // Send application email directly with CV attached
 async function sendApplicationEmail(toEmail, jobTitle, company, pitch) {
+  // RELEVANCE SHIELD
+  const relevance = isRelevantTechJobOrProject(jobTitle, pitch ? pitch.body : '');
+  if (!relevance.relevant) {
+    console.log(`🚫 [RELEVANCE SHIELD]: Discarding "${jobTitle}" (${relevance.reason}). Skipping LinkedIn radar auto-email.`);
+    return false;
+  }
+
   if (!mailTransporter) {
     console.log(`⚠️ SMTP credentials missing. Skipped direct email dispatch.`);
     return false;

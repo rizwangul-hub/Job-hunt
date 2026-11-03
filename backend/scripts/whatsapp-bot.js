@@ -1218,10 +1218,17 @@ Email: rizwangul535@gmail.com`;
             ...pagePhoneMatches.map(p => p.replace(/[^\d]/g, ''))
           ])];
 
-          const resolvedTitle = (schemaJob && schemaJob.title) || title || 'Software Developer';
+          const resolvedTitle = (schemaJob && schemaJob.title) || title || 'Full Stack Developer';
           const resolvedCompany = (schemaJob && schemaJob.hiringOrganization && schemaJob.hiringOrganization.name && schemaJob.hiringOrganization.name !== 'Confidential Employer')
             ? schemaJob.hiringOrganization.name
             : company;
+
+          // RELEVANCE SHIELD: Discard non-tech / non-developer discovered jobs
+          const linkRelevance = isRelevantTechJobOrProject(resolvedTitle, html, targetApplyUrl);
+          if (!linkRelevance.relevant) {
+            console.log(`🚫 [RELEVANCE SHIELD]: Discarding discovered link job "${resolvedTitle}" (${linkRelevance.reason}). Skipping auto-email.`);
+            return;
+          }
 
           console.log(`📄 Discovered Job: "${resolvedTitle}" at "${resolvedCompany}"`);
           if (discoveredEmails.length > 0) console.log(`🎯 Recruiter Emails: ${discoveredEmails.join(', ')}`);
