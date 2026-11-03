@@ -129,14 +129,16 @@ function isRelevantTechJobOrProject(title = '', text = '', location = '') {
     /pakistan|\bpk\b|karachi|lahore|islamabad|rawalpindi|peshawar|faisalabad|multan|sialkot|gujranwala|quetta|hyderabad|\+92|03\d{2}/i.test(combined) ||
     /pakistan|lahore|karachi|islamabad|rawalpindi/i.test(location);
 
-  const isRemote = /remote|work from home|wfh|anywhere|worldwide|distributed|virtual/i.test(combined) || /remote/i.test(location);
+  const hasOnsiteOnlyTrigger = /no remote|not remote|onsite only|on-site only|in-office only|must be located in|relocation required/i.test(combined);
+  const isRemote = (!hasOnsiteOnlyTrigger) && (
+    /remote|work from home|wfh|anywhere|worldwide|distributed|virtual/i.test(combined) || 
+    /remote/i.test(location)
+  );
 
   // If outside Pakistan and NOT remote -> Skip onsite overseas jobs
-  if (!isPakistan && !isRemote) {
-    const isExplicitInternationalOnsite = /united states|usa|uk|united kingdom|london|new york|california|dubai|uae|canada|germany|berlin|australia|india/i.test(combined);
-    if (isExplicitInternationalOnsite) {
-      return { relevant: false, reason: 'International job requires onsite presence (remote required for international).' };
-    }
+  const isExplicitInternational = /united states|usa|uk|united kingdom|london|new york|california|dubai|uae|canada|germany|berlin|australia|india/i.test(combined) || /london|new york|california|dubai|uae|uk|usa|canada/i.test(location);
+  if (!isPakistan && isExplicitInternational && !isRemote) {
+    return { relevant: false, reason: 'International job requires onsite presence (remote required for international).' };
   }
 
   return { 
