@@ -100,6 +100,10 @@ const client = new Client({
   authStrategy: new LocalAuth({
     dataPath: path.join(__dirname, '../.wwebjs_auth')
   }),
+  webVersionCache: {
+    type: 'remote',
+    remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1052828872-alpha.html'
+  },
   puppeteer: {
     headless: true,
     executablePath: getSystemBrowserPath(),
