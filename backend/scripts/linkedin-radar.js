@@ -273,7 +273,8 @@ async function recordApplicationInSystem(jobTitle, company, recruiterEmail, jobU
           applied: true,
           appliedAt: new Date()
         }
-      })
+      }),
+      signal: AbortSignal.timeout(8000)
     }).catch(() => null);
   } catch (e) {}
 }
@@ -298,67 +299,113 @@ async function scanLinkedInPublicJobs() {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-        }
+        },
+        signal: AbortSignal.timeout(10000)
+      }).catch(err => {
+        console.log(`ℹ️ LinkedIn guest query notice: ${err.message}`);
+        return null;
       });
-      if (!res.ok) continue;
-      const html = await res.text();
 
-      // Extract job cards via regex
-      const cardRegex = /<li[\s\S]*?<\/li>/gi;
-      const rawCards = html.match(cardRegex) || [];
-      const jobCards = [];
+      let html = (res && res.ok) ? await res.text() : '';
+      let jobCards = [];
 
-      for (const card of rawCards) {
-        const urlMatch = card.match(/href="([^"]*?\/jobs\/view\/[0-9]+[^"]*?)"/i) || card.match(/href="([^"]*?jobs\/view\/[^"]*?)"/i);
-        const titleMatch = card.match(/<h3[^>]*class="[^"]*base-search-card__title[^"]*"[^>]*>([\s\S]*?)<\/h3>/i);
-        const compMatch = card.match(/<h4[^>]*class="[^"]*base-search-card__subtitle[^"]*"[^>]*>[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/i) || card.match(/<h4[^>]*class="[^"]*base-search-card__subtitle[^"]*"[^>]*>([\s\S]*?)<\/h4>/i);
+      // If LinkedIn guest API returned results, parse them
+      if (html) {
+        const cardRegex = /<li[\s\S]*?<\/li>/gi;
+        const rawCards = html.match(cardRegex) || [];
 
-        if (urlMatch && titleMatch) {
-          const url = urlMatch[1].split('?')[0];
-          const title = titleMatch[1].replace(/<[^>]+>/g, '').trim();
-          const company = compMatch ? compMatch[1].replace(/<[^>]+>/g, '').trim() : 'Tech Company';
-          if (url && title) {
-            jobCards.push({ title, company, url });
+        for (const card of rawCards) {
+          const urlMatch = card.match(/href="([^"]*?\/jobs\/view\/[0-9]+[^"]*?)"/i) || card.match(/href="([^"]*?jobs\/view\/[^"]*?)"/i);
+          const titleMatch = card.match(/<h3[^>]*class="[^"]*base-search-card__title[^"]*"[^>]*>([\s\S]*?)<\/h3>/i);
+          const compMatch = card.match(/<h4[^>]*class="[^"]*base-search-card__subtitle[^"]*"[^>]*>[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/i) || card.match(/<h4[^>]*class="[^"]*base-search-card__subtitle[^"]*"[^>]*>([\s\S]*?)<\/h4>/i);
+
+          if (urlMatch && titleMatch) {
+            const url = urlMatch[1].split('?')[0];
+            const title = titleMatch[1].replace(/<[^>]+>/g, '').trim();
+            const company = compMatch ? compMatch[1].replace(/<[^>]+>/g, '').trim() : 'Tech Company';
+            if (url && title) {
+              jobCards.push({ title, company, url });
+            }
           }
         }
+      }
+
+      // If LinkedIn direct search throttled, run DuckDuckGo fallback for LinkedIn jobs
+      if (jobCards.length === 0) {
+        try {
+          const ddgQuery = `site:linkedin.com/jobs/view ("${query.keyword}") ${query.location} ("@" OR "hr" OR "careers")`;
+          const ddgUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(ddgQuery)}`;
+          const ddgRes = await fetch(ddgUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+            },
+            signal: AbortSignal.timeout(10000)
+          }).catch(() => null);
+
+          if (ddgRes && ddgRes.ok) {
+            const ddgHtml = await ddgRes.text();
+            const snippetMatches = ddgHtml.match(/<a class="result__snippet[^>]*>([\s\S]*?)<\/a>/gi) || [];
+            for (const snip of snippetMatches) {
+              const plain = snip.replace(/<[^>]+>/g, ' ');
+              const emailMatch = plain.match(/[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}/);
+              if (emailMatch) {
+                jobCards.push({
+                  title: query.keyword,
+                  company: 'LinkedIn Recruiter',
+                  url: 'https://www.linkedin.com/jobs',
+                  directEmail: emailMatch[0],
+                  description: plain
+                });
+              }
+            }
+          }
+        } catch (dErr) {}
       }
 
       console.log(`📋 Discovered ${jobCards.length} public postings.`);
 
       for (const job of jobCards.slice(0, 8)) {
         const jobKey = `${job.title}__${job.company}`.toLowerCase();
-        if (processedJobs.has(jobKey) || processedJobs.has(job.url)) {
+        if (processedJobs.has(jobKey) || (job.url && processedJobs.has(job.url))) {
           continue;
         }
 
         console.log(`\n💼 Inspecting: "${job.title}" at "${job.company}"`);
         try {
-          const jobIdMatch = job.url.match(/([0-9]{8,12})/);
-          const detailUrl = jobIdMatch 
-            ? `https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/${jobIdMatch[1]}`
-            : job.url;
+          let recruiterEmail = job.directEmail || null;
+          let jobDesc = job.description || '';
 
-          const detailRes = await fetch(detailUrl, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+          if (!recruiterEmail && job.url && job.url.includes('/jobs/view/')) {
+            const jobIdMatch = job.url.match(/([0-9]{8,12})/);
+            const detailUrl = jobIdMatch 
+              ? `https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/${jobIdMatch[1]}`
+              : job.url;
+
+            const detailRes = await fetch(detailUrl, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+              },
+              signal: AbortSignal.timeout(8000)
+            }).catch(() => null);
+
+            if (detailRes && detailRes.ok) {
+              const detailHtml = await detailRes.text();
+              jobDesc = detailHtml.replace(/<[^>]+>/g, ' ');
+              const emailRegex = /[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}/g;
+              const matches = jobDesc.match(emailRegex) || [];
+              const validRecruiterEmails = matches.filter(e => {
+                const em = e.toLowerCase();
+                return !em.includes('linkedin.com') && !em.includes('sentry.io') && !em.includes('example.com') && !em.includes('w3.org');
+              });
+              if (validRecruiterEmails.length > 0) {
+                recruiterEmail = validRecruiterEmails[0];
+              }
             }
-          });
-          const detailHtml = detailRes.ok ? await detailRes.text() : '';
-          const plainText = detailHtml.replace(/<[^>]+>/g, ' ');
+          }
 
-          // Parse recruiter emails excluding generic system domains
-          const emailRegex = /[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}/g;
-          const matches = plainText.match(emailRegex) || [];
-          const validRecruiterEmails = matches.filter(e => {
-            const em = e.toLowerCase();
-            return !em.includes('linkedin.com') && !em.includes('sentry.io') && !em.includes('example.com') && !em.includes('w3.org');
-          });
-
-          if (validRecruiterEmails.length > 0) {
-            const recruiterEmail = validRecruiterEmails[0];
+          if (recruiterEmail) {
             console.log(`🎯 Recruiter Contact Discovered: ${recruiterEmail}`);
-
-            const pitch = buildApplicationPitch(job.title, job.company, plainText);
+            const pitch = buildApplicationPitch(job.title, job.company, jobDesc);
 
             // Auto-dispatch Email with CV PDF attached
             const sent = await sendApplicationEmail(recruiterEmail, job.title, job.company, pitch);
@@ -366,7 +413,7 @@ async function scanLinkedInPublicJobs() {
             if (sent) {
               newApplicationsCount++;
               processedJobs.add(jobKey);
-              processedJobs.add(job.url);
+              if (job.url) processedJobs.add(job.url);
               saveCache();
 
               // Save to MongoDB / Webhook
@@ -376,7 +423,7 @@ async function scanLinkedInPublicJobs() {
           } else {
             // Mark as inspected so we don't inspect again
             processedJobs.add(jobKey);
-            processedJobs.add(job.url);
+            if (job.url) processedJobs.add(job.url);
             saveCache();
             console.log(`ℹ️ No direct recruiter email listed in public description.`);
           }

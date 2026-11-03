@@ -265,7 +265,7 @@ client.on('ready', () => {
     try {
       if (!isOnline) return;
       const apiUrl = (process.env.API_WEBHOOK_URL || 'https://backend-rose-two-72.vercel.app/api/webhooks/jobs').replace('/api/webhooks/jobs', '/api/jobs/follow-ups');
-      await fetch(apiUrl, { method: 'POST' }).catch(() => null);
+      await fetch(apiUrl, { method: 'POST', signal: AbortSignal.timeout(10000) }).catch(() => null);
     } catch (fErr) {}
   }, 2 * 60 * 60 * 1000);
 
@@ -273,7 +273,7 @@ client.on('ready', () => {
   setInterval(async () => {
     try {
       if (!isOnline) return;
-      const feedRes = await fetch('https://remoteok.com/api').catch(() => null);
+      const feedRes = await fetch('https://remoteok.com/api', { signal: AbortSignal.timeout(10000) }).catch(() => null);
       if (feedRes && feedRes.ok) {
         const jobs = await feedRes.json();
         const topJobs = (jobs || []).slice(1, 4);
@@ -290,7 +290,8 @@ client.on('ready', () => {
                 content: feedPost,
                 channel: 'rss',
                 groupName: 'Remote Developer Feed'
-              })
+              }),
+              signal: AbortSignal.timeout(8000)
             }).catch(() => null);
           }
         }
@@ -508,7 +509,7 @@ const RENDER_PUBLIC_URL = process.env.RENDER_EXTERNAL_URL || 'https://rizagent-j
 setInterval(async () => {
   try {
     const healthUrl = `${RENDER_PUBLIC_URL}/health`;
-    const res = await fetch(healthUrl);
+    const res = await fetch(healthUrl, { signal: AbortSignal.timeout(8000) });
     if (res.ok) {
       console.log(`💓 [24/7 KEEP-ALIVE] Pinged ${healthUrl} (${res.status} OK). Render will remain active 24/7!`);
     }
@@ -754,7 +755,8 @@ async function processIncomingMessage(msg, preloadedChat = null) {
           content: text,
           channel: 'whatsapp',
           groupName: groupName
-        })
+        }),
+        signal: AbortSignal.timeout(8000)
       });
       data = await res.json();
     } catch (apiErr) {
