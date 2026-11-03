@@ -153,7 +153,7 @@ const UserProfileSchema = new Schema<IUserProfile>(
       },
       pitchTemplate: {
         type: String,
-        default: `Hi {{contact_name}}, I noticed your opening regarding the {{role_title}} role requiring {{matched_tech}}.\n\nI'm Rizwan Ullah, a Full-Stack MERN & Mobile developer with hands-on experience building production web apps (MongoDB, Express, React, Node.js) and cross-platform mobile apps with React Native.\n\n🚀 Live Portfolio: {{portfolio_url}}\n📄 Attached: Resume PDF\n\nI'd be glad to discuss how I can contribute immediately. Looking forward to hearing from you!`
+        default: `Hi {{contact_name}}, I noticed your opening regarding the {{role_title}} role requiring {{matched_tech}}.\n\nI am Rizwan Ullah, a Full-Stack MERN & Software Developer with hands-on production experience building responsive web applications (MongoDB, Express, React, Node.js), Next.js architectures, and cross-platform mobile apps with React Native.\n\nProfessional Profiles & Demos:\n🌐 Live Portfolio: {{portfolio_url}}\n💼 LinkedIn: {{linkedin_url}}\n💻 GitHub: {{github_url}}\n📞 Direct WhatsApp / Phone: +92 325 5984244\n📄 Attached: Resume.pdf\n\nI would welcome the opportunity to discuss how my skill set can support your team. Looking forward to hearing from you!\n\nBest regards,\nRizwan Ullah\nFull-Stack Developer\nEmail: rizwangul535@gmail.com\nPhone / WhatsApp: +92 325 5984244`
       },
       calendlyUrl: { type: String, default: '' },
       notificationPhone: { type: String, default: '+92 325 5984244' },
