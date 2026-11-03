@@ -15,7 +15,11 @@ const {
   isPhoneAlreadyContacted,
   recordPhoneContacted,
   normalizeEmail,
-  normalizePhone
+  normalizePhone,
+  isRelevantTechJobOrProject,
+  detectProjectIntent,
+  NON_TECH_EXCLUSIONS,
+  TECH_KEYWORDS
 } = require('./universal-applier');
 
 // Safe Monkey-Patch: Protect against WhatsApp Web module structure race conditions in Client.inject

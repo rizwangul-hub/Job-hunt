@@ -160,10 +160,17 @@ Phone: ${user.phone}`;
       ? extracted.contact
       : (phoneMatch ? phoneMatch[0] : null);
 
-    // DIRECT DISPATCH: If match >= threshold and email contact is present, auto-send email with CV & portfolio
+    // DIRECT DISPATCH: If match >= threshold, auto-apply is eligible, not excluded, and not skipped by caller
     const defaultCV = user.cvs.find(c => c.isDefault) || user.cvs[0];
     const threshold = user.preferences?.minMatchThreshold || 30;
-    if (evalResult.score >= threshold && targetEmail) {
+    const shouldAutoApply = 
+      evalResult.score >= threshold && 
+      evalResult.isEligibleForAutoApply && 
+      targetEmail && 
+      !req.body.skipAutoApply && 
+      !req.body.onlyIngest;
+
+    if (shouldAutoApply) {
       try {
         const emailRes = await emailService.sendApplicationEmail({
           to: targetEmail,
@@ -171,7 +178,7 @@ Phone: ${user.phone}`;
           body: pitchMessage,
           cvFilePath: defaultCV?.filepath
         });
-        if (emailRes.success) {
+        if (emailRes.success && emailRes.verifiedDelivered) {
           status = 'auto-sent';
           appStatus = 'Submitted';
           directDispatched = true;

@@ -33,6 +33,120 @@ const CANDIDATE = {
 const REGISTRY_FILE = path.join(__dirname, '../.sent_recruiter_registry.json');
 let sentRegistry = { emails: {}, phones: {} };
 
+// STRICT NON-TECH EXCLUSIONS: Prevents RizAgent from ever applying to non-dev jobs
+const NON_TECH_EXCLUSIONS = [
+  'procurement', 'distribution', 'supply chain', 'logistics', 'warehouse',
+  'store keeper', 'inventory', 'driver', 'rider', 'delivery', 'security guard',
+  'guard', 'cook', 'chef', 'waiter', 'waitress', 'nurse', 'doctor', 'pharmacist',
+  'medical', 'pharmacy', 'patient', 'clinic', 'sales executive', 'sales representative',
+  'sales agent', 'sales manager', 'telesales', 'telemarketing', 'call center',
+  'bpo agent', 'receptionist', 'front desk', 'cashier', 'accountant', 'accounts officer',
+  'audit officer', 'finance officer', 'bookkeeper', 'tax consultant', 'legal',
+  'lawyer', 'attorney', 'civil engineer', 'mechanical engineer', 'electrical technician',
+  'electrician', 'plumber', 'mechanic', 'teacher', 'tutor', 'principal', 'professor',
+  'lecturer', 'faculty', 'maid', 'cleaner', 'housekeeping', 'janitor', 'tailor',
+  'beautician', 'salon', 'barber', 'general opportunity', 'urgent requirement'
+];
+
+// MANDATORY TECH KEYWORDS: At least one must be matched
+const TECH_KEYWORDS = [
+  'developer', 'engineer', 'programmer', 'software', 'full stack', 'fullstack',
+  'full-stack', 'mern', 'mean', 'react', 'reactjs', 'node', 'nodejs', 'frontend',
+  'front-end', 'backend', 'back-end', 'web develop', 'web design', 'website',
+  'web app', 'next.js', 'nextjs', 'vue', 'angular', 'javascript', 'typescript',
+  'python', 'django', 'flask', 'fastapi', 'c++', 'cpp', 'mobile app', 'react native',
+  'flutter', 'ai', 'machine learning', 'rest api', 'api', 'database', 'sql', 'mongodb',
+  'devops', 'cloud', 'wordpress', 'shopify', 'landing page', 'coding', 'html', 'css'
+];
+
+function detectProjectIntent(combinedText = '') {
+  const lower = combinedText.toLowerCase();
+  const hasProjectTrigger = 
+    lower.includes('project') || 
+    lower.includes('freelance') || 
+    lower.includes('client') || 
+    lower.includes('gig') || 
+    lower.includes('contract') || 
+    lower.includes('need website') || 
+    lower.includes('need a website') || 
+    lower.includes('build website') || 
+    lower.includes('create website') || 
+    lower.includes('make website') || 
+    lower.includes('need app') || 
+    lower.includes('build app') || 
+    lower.includes('need developer') || 
+    lower.includes('custom website') || 
+    lower.includes('landing page') ||
+    lower.includes('ecommerce') ||
+    lower.includes('shopify') ||
+    lower.includes('wordpress');
+
+  const hasTechDeliverable = 
+    lower.includes('website') || 
+    lower.includes('web') || 
+    lower.includes('app') || 
+    lower.includes('software') || 
+    lower.includes('full stack') || 
+    lower.includes('mern') || 
+    lower.includes('react') || 
+    lower.includes('node');
+
+  const isFormalJobOnly = 
+    lower.includes('salary:') || 
+    lower.includes('stipend:') || 
+    lower.includes('working hours:') || 
+    lower.includes('employmenttype') || 
+    lower.includes('schema.org');
+
+  return (hasProjectTrigger && hasTechDeliverable) && !isFormalJobOnly;
+}
+
+function isRelevantTechJobOrProject(title = '', text = '', location = '') {
+  const combined = (title + ' ' + text).toLowerCase();
+  const lowerTitle = (title || '').toLowerCase().trim();
+
+  // 1. Exclude if title contains explicit non-tech role
+  for (const exclusion of NON_TECH_EXCLUSIONS) {
+    if (lowerTitle.includes(exclusion)) {
+      return { relevant: false, reason: `Excluded non-tech title keyword: "${exclusion}"` };
+    }
+  }
+
+  // 2. Reject vague non-descriptive titles
+  if (/^(general opportunity|urgent requirement|opportunity|vacancy|job opening|staff needed|hiring|walk in interview)$/i.test(lowerTitle)) {
+    return { relevant: false, reason: `Vague non-tech title: "${title}"` };
+  }
+
+  // 3. Must match at least one verified tech keyword
+  const hasTechMatch = TECH_KEYWORDS.some(kw => combined.includes(kw));
+  if (!hasTechMatch) {
+    return { relevant: false, reason: 'No software, web, or tech skills mentioned.' };
+  }
+
+  // 4. Location Check per User Rule:
+  // "for the out of county see the remote work and for pakistan they apply for both remote or onsite"
+  const isPakistan = 
+    /pakistan|\bpk\b|karachi|lahore|islamabad|rawalpindi|peshawar|faisalabad|multan|sialkot|gujranwala|quetta|hyderabad|\+92|03\d{2}/i.test(combined) ||
+    /pakistan|lahore|karachi|islamabad|rawalpindi/i.test(location);
+
+  const isRemote = /remote|work from home|wfh|anywhere|worldwide|distributed|virtual/i.test(combined) || /remote/i.test(location);
+
+  // If outside Pakistan and NOT remote -> Skip onsite overseas jobs
+  if (!isPakistan && !isRemote) {
+    const isExplicitInternationalOnsite = /united states|usa|uk|united kingdom|london|new york|california|dubai|uae|canada|germany|berlin|australia|india/i.test(combined);
+    if (isExplicitInternationalOnsite) {
+      return { relevant: false, reason: 'International job requires onsite presence (remote required for international).' };
+    }
+  }
+
+  return { 
+    relevant: true, 
+    isProject: detectProjectIntent(combined), 
+    isPakistan, 
+    isRemote 
+  };
+}
+
 function loadRegistry() {
   if (fs.existsSync(REGISTRY_FILE)) {
     try {
@@ -316,6 +430,13 @@ Phone: ${CANDIDATE.phone}`
 async function sendApplicationEmail({ toEmail, title, company, description, sourceUrl }) {
   if (!toEmail) return false;
 
+  // RELEVANCE SHIELD: Ensure role matches candidate tech profile
+  const relevance = isRelevantTechJobOrProject(title, description);
+  if (!relevance.relevant) {
+    console.log(`🚫 [RELEVANCE SHIELD]: Skipping non-tech / ineligible application for "${title}". Reason: ${relevance.reason}`);
+    return false;
+  }
+
   const cleanEmail = toEmail.toLowerCase().trim();
 
   // Guard against dummy, test, and placeholder domains
@@ -378,6 +499,13 @@ async function sendApplicationEmail({ toEmail, title, company, description, sour
 async function sendApplicationWhatsApp(whatsappClient, { toPhone, title, company, description }) {
   if (!whatsappClient) return false;
   if (!toPhone) return false;
+
+  // RELEVANCE SHIELD: Ensure role matches candidate tech profile
+  const relevance = isRelevantTechJobOrProject(title, description);
+  if (!relevance.relevant) {
+    console.log(`🚫 [RELEVANCE SHIELD]: Skipping non-tech / ineligible WhatsApp outreach for "${title}". Reason: ${relevance.reason}`);
+    return false;
+  }
 
   // DEDUPLICATION CHECK: Never send multiple times to the same recruiter phone
   if (!reservePhoneContact(toPhone, { title, company, channel: 'universal-applier-whatsapp' })) {
@@ -534,5 +662,9 @@ module.exports = {
   recordPhoneContacted,
   reservePhoneContact,
   normalizeEmail,
-  normalizePhone
+  normalizePhone,
+  isRelevantTechJobOrProject,
+  detectProjectIntent,
+  NON_TECH_EXCLUSIONS,
+  TECH_KEYWORDS
 };
