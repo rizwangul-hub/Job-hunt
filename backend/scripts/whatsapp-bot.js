@@ -124,8 +124,7 @@ const client = new Client({
     dataPath: path.join(__dirname, '../.wwebjs_auth')
   }),
   webVersionCache: {
-    type: 'remote',
-    remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1052828872-alpha.html'
+    type: 'none'
   },
   evalOnNewDoc: () => {
     // Client-side shim: Guarantees window.require('WAWebSocketModel').Socket is never null
@@ -1420,14 +1419,14 @@ client.on('message', async (msg) => {
 
 client.initialize().catch(async (err) => {
   console.error('❌ Error during client.initialize():', err.message);
-  botStatus = `Retrying WhatsApp initialization in 5s (${err.message})...`;
+  botStatus = `Retrying WhatsApp initialization in 20s (${err.message})...`;
   try {
     await client.destroy().catch(() => {});
   } catch (e) {}
   setTimeout(() => {
     botStatus = 'Restarting WhatsApp Web client...';
     client.initialize().catch(() => {});
-  }, 5000);
+  }, 20000);
 });
 
 // Diagnostic watchdog: Logs exact WhatsApp Web DOM state if QR doesn't emit within 60 seconds
