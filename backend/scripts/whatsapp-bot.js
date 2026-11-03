@@ -320,14 +320,14 @@ function scheduleRadars() {
       const { scanLinkedInPublicJobs } = require('./linkedin-radar');
       await scanLinkedInPublicJobs().catch(() => null);
     } catch (rErr) {}
-  }, 10000);
+  }, 5000);
 
   setInterval(async () => {
     try {
       const { scanLinkedInPublicJobs } = require('./linkedin-radar');
       await scanLinkedInPublicJobs().catch(() => null);
     } catch (rErr) {}
-  }, 35 * 60 * 1000);
+  }, 15 * 60 * 1000); // Scan every 15 minutes
 
   // 2. Facebook & Instagram Social Radar
   setTimeout(async () => {
@@ -335,14 +335,14 @@ function scheduleRadars() {
       const { scanSocialTechJobs } = require('./social-radar');
       await scanSocialTechJobs(getLiveWhatsAppClient()).catch(() => null);
     } catch (sErr) {}
-  }, 60000);
+  }, 20000);
 
   setInterval(async () => {
     try {
       const { scanSocialTechJobs } = require('./social-radar');
       await scanSocialTechJobs(getLiveWhatsAppClient()).catch(() => null);
     } catch (sErr) {}
-  }, 30 * 60 * 1000);
+  }, 15 * 60 * 1000); // Scan every 15 minutes
 
   // 3. Indeed Autonomous Radar
   setTimeout(async () => {
@@ -350,14 +350,14 @@ function scheduleRadars() {
       const { scanIndeedJobs } = require('./indeed-hunter');
       await scanIndeedJobs(getLiveWhatsAppClient()).catch(() => null);
     } catch (iErr) {}
-  }, 120000);
+  }, 40000);
 
   setInterval(async () => {
     try {
       const { scanIndeedJobs } = require('./indeed-hunter');
       await scanIndeedJobs(getLiveWhatsAppClient()).catch(() => null);
     } catch (iErr) {}
-  }, 30 * 60 * 1000);
+  }, 15 * 60 * 1000); // Scan every 15 minutes
 }
 
 // Automatically activate autonomous radars across all platforms (Windows & Render Linux)
@@ -499,6 +499,31 @@ candidatePorts.forEach(port => {
       // Ignore if port in use
     });
   } catch (e) {}
+});
+
+// =====================================================================
+// 24/7 CLOUD KEEP-ALIVE SYSTEM (Prevents Render Free Tier from Sleeping)
+// =====================================================================
+const RENDER_PUBLIC_URL = process.env.RENDER_EXTERNAL_URL || 'https://rizagent-job-hunter.onrender.com';
+setInterval(async () => {
+  try {
+    const healthUrl = `${RENDER_PUBLIC_URL}/health`;
+    const res = await fetch(healthUrl);
+    if (res.ok) {
+      console.log(`💓 [24/7 KEEP-ALIVE] Pinged ${healthUrl} (${res.status} OK). Render will remain active 24/7!`);
+    }
+  } catch (pingErr) {
+    // Non-blocking network blip
+  }
+}, 5 * 60 * 1000); // Trigger every 5 minutes (Render sleep timeout is 15 minutes)
+
+// Global Supervisor Shields: Prevent any unhandled error from crashing the process
+process.on('uncaughtException', (err) => {
+  console.error('🛡️ [SUPERVISOR SHIELD] Intercepted uncaughtException (bot kept alive):', err.message);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('🛡️ [SUPERVISOR SHIELD] Intercepted unhandledRejection (bot kept alive):', reason && reason.message ? reason.message : reason);
 });
 
 // Avoid processing identical messages repeatedly
