@@ -815,7 +815,8 @@ async function processIncomingMessage(msg, preloadedChat = null) {
           text: text,
           content: text,
           channel: 'whatsapp',
-          groupName: groupName
+          groupName: groupName,
+          skipAutoApply: true // Prevent dual-dispatch; whatsapp-bot executes apply locally with CV
         }),
         signal: AbortSignal.timeout(8000)
       });
@@ -826,10 +827,17 @@ async function processIncomingMessage(msg, preloadedChat = null) {
 
     const job = (data && data.job) || {};
     const score = (data && (data.matchScore || job.matchScore)) || 90;
-    const title = extractedRole || job.title || 'Software Developer';
+    const title = extractedRole || job.title || 'Full Stack Developer';
     const company = (extractedCompany && extractedCompany !== 'Confidential Employer') ? extractedCompany : (job.company || 'Tech Team');
 
-    console.log(`🎯 Evaluated: "${title}" at "${company}"`);
+    // RELEVANCE SHIELD: Reject non-tech, non-developer jobs (Distribution, Procurement, Clerk, Nurse, Driver, etc.)
+    const relevanceCheck = isRelevantTechJobOrProject(title, text, groupName);
+    if (!relevanceCheck.relevant) {
+      console.log(`🚫 [RELEVANCE SHIELD]: Discarding "${title}" (${relevanceCheck.reason}). RizAgent only applies to Web/Software/Tech jobs & projects.`);
+      return;
+    }
+
+    console.log(`🎯 Evaluated Tech Opportunity: "${title}" at "${company}"`);
     console.log(`📊 Profile Match Score: ${score}%`);
 
     // Tailor pitch based on category (Web Development 1-5+ yrs, Python/C++/AI, Data Entry / General)
@@ -893,15 +901,11 @@ Full-Stack Web & Software Developer
 Email: rizwangul535@gmail.com`;
     } else if (
       lowerRole.includes('data entry') ||
-      lowerRole.includes('computer operator') ||
-      lowerRole.includes('office') ||
-      lowerRole.includes('clerk') ||
-      lowerRole.includes('typing') ||
-      lowerRole.includes('assistant')
+      lowerRole.includes('computer operator')
     ) {
       pitch = `Salam! I saw your post regarding the ${title} position.
 
-I am writing to express my strong interest in this opportunity. I have comprehensive computer proficiency, fast and accurate typing skills, practical experience managing data with MS Office & Excel, and a dedicated, detail-oriented work ethic.
+I am writing to express my interest in this role. I have comprehensive computer proficiency, fast and accurate typing skills, practical experience managing data with MS Office & Excel, and a dedicated, detail-oriented work ethic.
 
 Professional Profiles & Demos:
 - 🌐 Portfolio: ${portfolio}
@@ -909,7 +913,7 @@ Professional Profiles & Demos:
 - 💻 GitHub: ${github}
 - 📞 Direct Contact: +92 325 5984244
 
-I have attached my CV below for your review. I am available immediately and look forward to discussing how I can assist your team!
+I have attached my CV below for your review. I am available immediately and look forward to hearing from your team!
 
 Best regards,
 ${candidateName}
@@ -973,14 +977,16 @@ Email: rizwangul535@gmail.com`;
       !targetEmail.includes('test.com')
     ) {
       // DEDUPLICATION SHIELD: Check & reserve synchronously to prevent race conditions
-      if (!reserveEmailContact(targetEmail, { role: title, company, channel: 'whatsapp-direct-email' })) {
+      if (data && data.directDispatched) {
+        console.log(`📧 [EMAIL ALREADY DISPATCHED]: Vercel API already sent application to ${targetEmail}`);
+      } else if (!reserveEmailContact(targetEmail, { role: title, company, channel: 'whatsapp-direct-email' })) {
         console.log(`🛡️ [DEDUPLICATION SHIELD]: Recruiter email "${targetEmail}" has ALREADY received an application before. Skipping duplicate email!`);
       } else if (mailTransporter) {
         try {
           await mailTransporter.sendMail({
             from: `"${candidateName}" <${process.env.SMTP_FROM || process.env.SMTP_USER || 'rizwangul535@gmail.com'}>`,
             to: targetEmail,
-            subject: `Application for ${title} — ${candidateName}`,
+            subject: isProject ? `Full-Stack Web & App Development Proposal — ${candidateName}` : `Application for ${title} — ${candidateName}`,
             text: pitch,
             attachments: cvPath && fs.existsSync(cvPath) 
               ? [{ filename: `${candidateName} - Full Stack Developer CV.pdf`, path: cvPath }] 
