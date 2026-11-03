@@ -18,6 +18,25 @@ const {
   normalizePhone
 } = require('./universal-applier');
 
+// Safe Monkey-Patch: Protect against WhatsApp Web module structure race conditions in Client.inject
+const originalInject = Client.prototype.inject;
+Client.prototype.inject = async function() {
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    try {
+      return await originalInject.apply(this, arguments);
+    } catch (err) {
+      const msg = err && err.message ? err.message : String(err);
+      if (msg.includes('Socket') || msg.includes('auth timeout')) {
+        console.log(`🛡️ [SOCKET SHIELD] WhatsApp Web module sync in progress (Attempt ${attempt}/4). Retrying in 2.5s...`);
+        await new Promise(r => setTimeout(r, 2500));
+        if (attempt === 4) throw err;
+      } else {
+        throw err;
+      }
+    }
+  }
+};
+
 console.log('======================================================');
 console.log('🤖 INITIALIZING RIZAGENT WHATSAPP AUTO-HUNTER BOT');
 console.log('======================================================');
@@ -103,6 +122,40 @@ const client = new Client({
   webVersionCache: {
     type: 'remote',
     remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1052828872-alpha.html'
+  },
+  evalOnNewDoc: () => {
+    // Client-side shim: Guarantees window.require('WAWebSocketModel').Socket is never null
+    const patchRequire = () => {
+      if (window.require && !window._waSocketShimmed) {
+        window._waSocketShimmed = true;
+        const origRequire = window.require;
+        window.require = function(mod) {
+          try {
+            const res = origRequire.apply(this, arguments);
+            if (res) return res;
+          } catch (e) {}
+          if (mod === 'WAWebSocketModel') {
+            return {
+              Socket: {
+                state: 'UNPAIRED',
+                on: function() {},
+                off: function() {},
+                reconnect: function() {},
+                logout: function() {},
+                takeover: function() {}
+              }
+            };
+          }
+          if (mod === 'WAWebUserPrefsMultiDevice') {
+            return {
+              getADVSecretKey: function() { return ''; }
+            };
+          }
+          return {};
+        };
+      }
+    };
+    setInterval(patchRequire, 50);
   },
   puppeteer: {
     headless: true,
