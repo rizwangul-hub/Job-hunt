@@ -163,7 +163,7 @@ const client = new Client({
   puppeteer: {
     headless: true,
     executablePath: getSystemBrowserPath(),
-    protocolTimeout: 300000,
+    protocolTimeout: 0, // Disables CDP command timeout so heavy WhatsApp Web sync never throws Runtime.callFunctionOn timed out
     timeout: 120000,
     args: [
       '--no-sandbox',
@@ -177,8 +177,8 @@ const client = new Client({
       '--disable-default-apps',
       '--mute-audio',
       '--no-default-browser-check',
-      '--window-size=800,600',
-      '--js-flags=--max-old-space-size=128',
+      '--window-size=1024,768',
+      '--js-flags=--max-old-space-size=512',
       '--disable-background-timer-throttling',
       '--disable-backgrounding-occluded-windows',
       '--disable-renderer-backgrounding'
