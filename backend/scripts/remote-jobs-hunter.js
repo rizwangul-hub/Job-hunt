@@ -162,7 +162,25 @@ async function scanHighVolumeRemoteJobs(whatsappClient = null) {
     console.log(`\n💼 Matching Tech Role: "${job.title}" at "${job.company}" (${job.source.toUpperCase()})`);
 
     // Check for direct email in job description
-    const emails = extractEmails(job.description);
+    let emails = extractEmails(job.description);
+
+    // If no email in summary, attempt quick inspection of employer destination page
+    if (emails.length === 0 && job.url) {
+      try {
+        const destRes = await fetch(job.url, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+          signal: AbortSignal.timeout(5000)
+        });
+        if (destRes.ok) {
+          const destHtml = await destRes.text();
+          emails = extractEmails(destHtml);
+          if (emails.length > 0) {
+            console.log(`🎯 Recruiter Email Discovered on Employer Page: ${emails[0]}`);
+          }
+        }
+      } catch (fErr) {}
+    }
+
     if (emails.length > 0) {
       const recruiterEmail = emails[0];
       console.log(`🎯 Recruiter Contact Found: ${recruiterEmail}`);
@@ -177,7 +195,38 @@ async function scanHighVolumeRemoteJobs(whatsappClient = null) {
       });
       if (applied) totalDispatched++;
     } else {
-      console.log(`ℹ️ Apply URL available: ${job.url}`);
+      console.log(`📋 [DIRECT APPLY URL] "${job.title}" at "${job.company}" -> ${job.url}`);
+      // Record direct apply opportunity to database so Rizwan can track & 1-tap apply
+      try {
+        const webhookUrl = process.env.API_WEBHOOK_URL || 'https://backend-rose-two-72.vercel.app/api/webhooks/jobs';
+        const rawText = `DIRECT APPLY ROLE: ${job.title} at ${job.company}. URL: ${job.url}`;
+        await fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            rawText,
+            text: rawText,
+            channel: job.source,
+            groupName: 'Global Remote Tech Radar',
+            skipAutoApply: true,
+            job: {
+              title: job.title,
+              company: job.company,
+              applyUrl: job.url,
+              applied: false,
+              status: 'ready_to_apply',
+              location: job.location || 'Remote'
+            }
+          }),
+          signal: AbortSignal.timeout(6000)
+        }).catch(() => null);
+
+        // Notify Rizwan on WhatsApp with direct 1-click apply link
+        if (whatsappClient && typeof whatsappClient.sendMessage === 'function') {
+          const alertMsg = `💼 *[DIRECT APPLY MATCH]*\n*Role:* ${job.title}\n*Company:* ${job.company}\n*Location:* ${job.location || 'Remote'}\n🔗 *Apply Link:* ${job.url}\n\n_Auto-screened for your Full-Stack Developer profile._`;
+          await whatsappClient.sendMessage(CANDIDATE.whatsappJid, alertMsg).catch(() => null);
+        }
+      } catch (recErr) {}
     }
   }
 

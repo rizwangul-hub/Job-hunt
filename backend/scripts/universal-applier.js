@@ -45,7 +45,9 @@ const NON_TECH_EXCLUSIONS = [
   'lawyer', 'attorney', 'civil engineer', 'mechanical engineer', 'electrical technician',
   'electrician', 'plumber', 'mechanic', 'teacher', 'tutor', 'principal', 'professor',
   'lecturer', 'faculty', 'maid', 'cleaner', 'housekeeping', 'janitor', 'tailor',
-  'beautician', 'salon', 'barber', 'general opportunity', 'urgent requirement'
+  'beautician', 'salon', 'barber', 'general opportunity', 'urgent requirement',
+  'people operations', 'hr coordinator', 'talent acquisition', 'recruiter', 'product manager',
+  'operations coordinator', 'operations manager', 'administrative assistant', 'office assistant'
 ];
 
 // MANDATORY TECH KEYWORDS: At least one must be matched
@@ -117,9 +119,15 @@ function isRelevantTechJobOrProject(title = '', text = '', location = '') {
     return { relevant: false, reason: `Vague non-tech title: "${title}"` };
   }
 
-  // 3. Must match at least one verified tech keyword
+  // 3. Must match at least one verified tech keyword in title OR be an explicit freelance/client project
+  const isFreelanceProject = detectProjectIntent(combined);
+  const titleHasTech = TECH_KEYWORDS.some(kw => lowerTitle.includes(kw));
+  if (!titleHasTech && !isFreelanceProject) {
+    return { relevant: false, reason: `Title "${title}" is not a developer, engineering, or software role.` };
+  }
+
   const hasTechMatch = TECH_KEYWORDS.some(kw => combined.includes(kw));
-  if (!hasTechMatch) {
+  if (!hasTechMatch && !isFreelanceProject) {
     return { relevant: false, reason: 'No software, web, or tech skills mentioned.' };
   }
 

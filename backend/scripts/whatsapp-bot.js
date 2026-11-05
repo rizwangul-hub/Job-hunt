@@ -263,10 +263,33 @@ client.on('auth_failure', (msg) => {
   console.error('❌ WhatsApp authentication failed:', msg);
 });
 
+let isReconnecting = false;
 client.on('disconnected', (reason) => {
   isOnline = false;
-  botStatus = `Disconnected: ${reason}`;
-  console.log(`ℹ️ WhatsApp session disconnected (Reason: ${reason}). Another instance (e.g. Railway) may have taken over.`);
+  botStatus = `Disconnected: ${reason}. Auto-reconnecting...`;
+  console.log(`⚠️ WhatsApp session disconnected (Reason: ${reason}). Auto-reconnecting in 5s...`);
+  
+  if (!isReconnecting) {
+    isReconnecting = true;
+    setTimeout(async () => {
+      try {
+        console.log('🔄 Attempting WhatsApp Web auto-reconnection...');
+        await client.initialize();
+        isReconnecting = false;
+      } catch (rErr) {
+        console.error('❌ Reconnect attempt failed:', rErr.message, '- Will retry in 20s...');
+        setTimeout(async () => {
+          try {
+            await client.initialize();
+            isReconnecting = false;
+          } catch (e2) {
+            console.error('❌ Reconnect retry 2 failed:', e2.message);
+            isReconnecting = false;
+          }
+        }, 20000);
+      }
+    }, 5000);
+  }
 });
 
 client.on('ready', () => {
@@ -282,43 +305,56 @@ client.on('ready', () => {
   console.log('💬 Recruiter with Phone -> Auto-messages WhatsApp Pitch & CV Document');
   console.log('======================================================\n');
 
-  // Periodic WhatsApp Active Group & Channel Catch-Up Scanner (every 45 seconds)
+  // Periodic WhatsApp Active Group & Channel Catch-Up Scanner (runs every 5 minutes on recent chats)
+  let isScanningGroups = false;
   async function scanActiveGroups() {
+    if (isScanningGroups) return;
+    isScanningGroups = true;
     try {
-      if (!client.pupPage || client.pupPage.isClosed()) return;
+      if (!client.pupPage || client.pupPage.isClosed()) {
+        isScanningGroups = false;
+        return;
+      }
       const isStoreReady = await client.pupPage.evaluate(() => {
         return Boolean(window.Store && window.Store.Chat && typeof window.Store.Chat.getModelsArray === 'function');
       }).catch(() => false);
-      if (!isStoreReady) return;
+      if (!isStoreReady) {
+        isScanningGroups = false;
+        return;
+      }
 
       const chats = await client.getChats();
+      // Only inspect the top 10 most recent groups to prevent browser memory exhaustion
+      const recentGroupChats = chats.filter(c => 
+        c.isGroup || (c.id && c.id.server === 'newsletter') || (c.id && c.id._serialized && c.id._serialized.includes('@g.us'))
+      ).slice(0, 10);
+
       let scannedCount = 0;
-      for (const c of chats) {
-        const isGrp = c.isGroup || (c.id && c.id.server === 'newsletter') || (c.id && c.id._serialized && c.id._serialized.includes('@g.us'));
-        if (isGrp) {
-          scannedCount++;
-          try {
-            const msgs = await c.fetchMessages({ limit: 12 });
-            for (const rm of msgs) {
-              if (rm && (rm.body || rm.caption)) {
-                await processIncomingMessage(rm, c);
-              }
+      for (const c of recentGroupChats) {
+        scannedCount++;
+        try {
+          const msgs = await c.fetchMessages({ limit: 8 });
+          for (const rm of msgs) {
+            if (rm && (rm.body || rm.caption)) {
+              await processIncomingMessage(rm, c);
             }
-          } catch (mErr) {}
-        }
+          }
+        } catch (mErr) {}
       }
       if (scannedCount > 0) {
         console.log(`✅ Checked ${scannedCount} active groups & channels for jobs.`);
       }
     } catch (chErr) {
       console.log('Group catch-up notice:', chErr.message);
+    } finally {
+      isScanningGroups = false;
     }
   }
 
-  // Scan 10 seconds after connecting to let chat store settle
-  setTimeout(scanActiveGroups, 10000);
-  // Re-check groups every 45s so no job in any group is ever missed
-  setInterval(scanActiveGroups, 45000);
+  // Scan 15 seconds after connecting to let chat store settle
+  setTimeout(scanActiveGroups, 15000);
+  // Re-check groups every 5 minutes (real-time message event handles all active messages immediately)
+  setInterval(scanActiveGroups, 5 * 60 * 1000);
 
   // FEATURE 5: Automated 3-Day Polite Follow-Up Routine (Checks every 2 hours)
   setInterval(async () => {

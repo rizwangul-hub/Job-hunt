@@ -48,19 +48,20 @@ WORKDIR /app/backend
 # Copy package manifests
 COPY backend/package*.json ./
 
-# Install dependencies
-RUN npm install --production
+# Install all dependencies required for build
+RUN npm install
 
 # Copy backend source & scripts
 COPY backend/ ./
 
-# Purge any local Windows session files or caches
+# Compile TypeScript
+RUN npm run build
+
+# Purge any local session files or caches
 RUN rm -rf .wwebjs_auth .wwebjs_cache
 
-# Use system chromium
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+# Configuration
 ENV PORT=10000
 EXPOSE 10000 5000
 
-CMD ["node", "--max-old-space-size=160", "scripts/whatsapp-bot.js"]
+CMD ["node", "--max-old-space-size=400", "dist/server.js"]

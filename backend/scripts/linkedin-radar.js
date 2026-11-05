@@ -260,10 +260,12 @@ async function sendApplicationEmail(toEmail, jobTitle, company, pitch) {
 }
 
 // Ingest application into Webhook / MongoDB
-async function recordApplicationInSystem(jobTitle, company, recruiterEmail, jobUrl, channel = 'linkedin-public-radar') {
+async function recordApplicationInSystem(jobTitle, company, recruiterEmail, jobUrl, channel = 'linkedin-public-radar', applied = true) {
   try {
     const webhookUrl = process.env.API_WEBHOOK_URL || 'https://backend-rose-two-72.vercel.app/api/webhooks/jobs';
-    const rawText = `LINKEDIN PUBLIC RADAR: Discovered ${jobTitle} at ${company}. Recruiter contact: ${recruiterEmail}. URL: ${jobUrl}`;
+    const rawText = applied
+      ? `LINKEDIN APPLICATION: Discovered ${jobTitle} at ${company}. Recruiter contact: ${recruiterEmail}. URL: ${jobUrl}`
+      : `LINKEDIN DIRECT APPLY ROLE: Discovered ${jobTitle} at ${company}. Apply URL: ${jobUrl}`;
 
     await fetch(webhookUrl, {
       method: 'POST',
@@ -273,13 +275,15 @@ async function recordApplicationInSystem(jobTitle, company, recruiterEmail, jobU
         text: rawText,
         channel: channel,
         groupName: 'LinkedIn Public Radar',
+        skipAutoApply: true,
         job: {
           title: jobTitle,
           company: company,
           recruiterEmail: recruiterEmail,
           applyUrl: jobUrl,
-          applied: true,
-          appliedAt: new Date()
+          applied: applied,
+          status: applied ? 'applied' : 'ready_to_apply',
+          appliedAt: applied ? new Date() : undefined
         }
       }),
       signal: AbortSignal.timeout(8000)
@@ -433,7 +437,9 @@ async function scanLinkedInPublicJobs() {
             processedJobs.add(jobKey);
             if (job.url) processedJobs.add(job.url);
             saveCache();
-            console.log(`ℹ️ No direct recruiter email listed in public description.`);
+            // Record direct apply role in database for Rizwan's tracking
+            await recordApplicationInSystem(job.title, job.company, null, job.url, 'linkedin-direct-apply', false);
+            console.log(`📋 [DIRECT APPLY RECORDED] "${job.title}" at "${job.company}" -> ${job.url}`);
           }
         } catch (jobErr) {
           console.log(`⚠️ Notice on job inspection: ${jobErr.message}`);
