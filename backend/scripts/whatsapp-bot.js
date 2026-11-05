@@ -419,11 +419,26 @@ function scheduleRadars() {
       await scanIndeedJobs(getLiveWhatsAppClient()).catch(() => null);
     } catch (iErr) {}
   }, 15 * 60 * 1000); // Scan every 15 minutes
+
+  // 4. High-Volume Global Remote Tech Radar (Remotive, Jobicy, RemoteOK)
+  setTimeout(async () => {
+    try {
+      const { scanHighVolumeRemoteJobs } = require('./remote-jobs-hunter');
+      await scanHighVolumeRemoteJobs(getLiveWhatsAppClient()).catch(() => null);
+    } catch (hErr) {}
+  }, 25000);
+
+  setInterval(async () => {
+    try {
+      const { scanHighVolumeRemoteJobs } = require('./remote-jobs-hunter');
+      await scanHighVolumeRemoteJobs(getLiveWhatsAppClient()).catch(() => null);
+    } catch (hErr) {}
+  }, 15 * 60 * 1000); // Scan every 15 minutes
 }
 
 // Automatically activate autonomous radars across all platforms (Windows & Render Linux)
 setTimeout(() => {
-  console.log('🚀 Activating autonomous 24/7 background radars (LinkedIn, Social, Indeed)...');
+  console.log('🚀 Activating autonomous 24/7 background radars (LinkedIn, Social, Indeed, High-Volume Remote)...');
   scheduleRadars();
 }, 15000);
 
