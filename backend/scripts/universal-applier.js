@@ -47,7 +47,8 @@ const NON_TECH_EXCLUSIONS = [
   'lecturer', 'faculty', 'maid', 'cleaner', 'housekeeping', 'janitor', 'tailor',
   'beautician', 'salon', 'barber', 'general opportunity', 'urgent requirement',
   'people operations', 'hr coordinator', 'talent acquisition', 'recruiter', 'product manager',
-  'operations coordinator', 'operations manager', 'administrative assistant', 'office assistant'
+  'operations coordinator', 'operations manager', 'administrative assistant', 'office assistant',
+  'writer', 'content writer', 'copywriter', 'content reviewer', 'transcription', 'editor', 'journalist', 'proofreader'
 ];
 
 // MANDATORY TECH KEYWORDS: At least one must be matched
@@ -84,14 +85,21 @@ function detectProjectIntent(combinedText = '') {
     lower.includes('wordpress');
 
   const hasTechDeliverable = 
-    lower.includes('website') || 
-    lower.includes('web') || 
-    lower.includes('app') || 
-    lower.includes('software') || 
+    lower.includes('website development') || 
+    lower.includes('web development') || 
+    lower.includes('web developer') || 
+    lower.includes('software development') || 
+    lower.includes('software engineer') || 
+    lower.includes('mobile app') || 
     lower.includes('full stack') || 
     lower.includes('mern') || 
     lower.includes('react') || 
-    lower.includes('node');
+    lower.includes('node.js') || 
+    lower.includes('frontend developer') || 
+    lower.includes('backend developer') || 
+    lower.includes('landing page design') || 
+    lower.includes('shopify development') || 
+    lower.includes('wordpress development');
 
   const isFormalJobOnly = 
     lower.includes('salary:') || 

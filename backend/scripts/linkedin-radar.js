@@ -313,10 +313,12 @@ async function scanLinkedInPublicJobs() {
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
         },
         signal: AbortSignal.timeout(10000)
-      }).catch(err => {
-        console.log(`ℹ️ LinkedIn guest query notice: ${err.message}`);
-        return null;
-      });
+      }).catch(() => null);
+
+      if (res && res.status === 429) {
+        console.log(`ℹ️ LinkedIn public search rate-limited (HTTP 429). Using cache & direct API channels.`);
+        break;
+      }
 
       let html = (res && res.ok) ? await res.text() : '';
       let jobCards = [];

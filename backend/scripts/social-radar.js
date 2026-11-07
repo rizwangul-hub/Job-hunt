@@ -130,9 +130,9 @@ async function scanSocialTechJobs(whatsappClient = null) {
         }
       }
     } catch (err) {
-      console.log(`ℹ️ Notice for ${target.platform}: ${err.message}`);
+      // Gracefully continue without polluting console
     }
-    await delay(1500);
+    await delay(1000);
   }
 
   console.log(`\n======================================================`);

@@ -19,7 +19,7 @@ cd /d "%~dp0backend"
 
 :RUN_LOOP
 echo [%date% %time%] Starting RizAgent Bot & Radars...
-node scripts/whatsapp-bot.js
+node --max-old-space-size=1024 scripts/whatsapp-bot.js
 echo.
 echo [WARNING] RizAgent process exited or restarted.
 echo [%date% %time%] Auto-restarting in 5 seconds to ensure uninterrupted applying...

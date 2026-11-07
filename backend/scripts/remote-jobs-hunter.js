@@ -128,24 +128,89 @@ async function fetchRemoteOkJobs() {
   return jobs;
 }
 
+async function fetchArbeitnowJobs() {
+  const jobs = [];
+  try {
+    const res = await fetch('https://www.arbeitnow.com/api/job-board-api', {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      signal: AbortSignal.timeout(12000)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      for (const j of (data.data || []).slice(0, 60)) {
+        if (!j || !j.slug) continue;
+        jobs.push({
+          id: `arbeit_${j.slug}`,
+          title: j.title,
+          company: j.company_name,
+          url: j.url,
+          location: j.remote ? 'Remote' : (j.location || 'Remote'),
+          description: j.description ? j.description.replace(/<[^>]+>/g, ' ') : '',
+          source: 'arbeitnow'
+        });
+      }
+    }
+  } catch (e) {
+    console.log(`ℹ️ Arbeitnow API Notice: ${e.message}`);
+  }
+  return jobs;
+}
+
+async function fetchHimalayasJobs() {
+  const jobs = [];
+  try {
+    const res = await fetch('https://himalayas.app/jobs/api?limit=50', {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      signal: AbortSignal.timeout(12000)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      for (const j of (data.jobs || [])) {
+        if (!j || !j.id) continue;
+        jobs.push({
+          id: `himalayas_${j.id}`,
+          title: j.title,
+          company: j.companyName,
+          url: j.applicationLink || `https://himalayas.app/companies/${j.companySlug}/jobs/${j.slug}`,
+          location: j.locationRestrictions?.join(', ') || 'Remote',
+          description: j.description ? j.description.replace(/<[^>]+>/g, ' ') : (j.excerpt || ''),
+          source: 'himalayas'
+        });
+      }
+    }
+  } catch (e) {
+    console.log(`ℹ️ Himalayas API Notice: ${e.message}`);
+  }
+  return jobs;
+}
+
 async function scanHighVolumeRemoteJobs(whatsappClient = null) {
   console.log('\n======================================================');
   console.log('🚀 STARTING HIGH-VOLUME GLOBAL DEVELOPER JOB RADAR');
   console.log(`   Candidate: ${CANDIDATE.name} (${CANDIDATE.email})`);
-  console.log(`   Targets: Remotive, Jobicy, RemoteOK`);
+  console.log(`   Targets: Remotive, Jobicy, RemoteOK, Arbeitnow, Himalayas`);
   console.log('======================================================\n');
 
   let totalDispatched = 0;
 
   // 1. Fetch from high-volume sources in parallel
-  const [remotiveJobs, jobicyReact, jobicyFullStack, remoteOkJobs] = await Promise.all([
+  const [remotiveJobs, jobicyReact, jobicyFullStack, remoteOkJobs, arbeitJobs, himalayasJobs] = await Promise.all([
     fetchRemotiveJobs(),
     fetchJobicyJobs('react'),
     fetchJobicyJobs('full-stack'),
-    fetchRemoteOkJobs()
+    fetchRemoteOkJobs(),
+    fetchArbeitnowJobs(),
+    fetchHimalayasJobs()
   ]);
 
-  const allJobs = [...remotiveJobs, ...jobicyReact, ...jobicyFullStack, ...remoteOkJobs];
+  const allJobs = [
+    ...remotiveJobs,
+    ...jobicyReact,
+    ...jobicyFullStack,
+    ...remoteOkJobs,
+    ...arbeitJobs,
+    ...himalayasJobs
+  ];
   console.log(`📊 Total Fresh Remote Jobs Ingested: ${allJobs.length}`);
 
   for (const job of allJobs) {
