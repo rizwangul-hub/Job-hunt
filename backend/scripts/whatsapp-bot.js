@@ -57,17 +57,31 @@ if (process.env.SMTP_USER && process.env.SMTP_PASS) {
   });
 }
 
-const CANDIDATE_PHONE = (process.env.CANDIDATE_WHATSAPP || '923255984244').replace(/[^\d]/g, '');
+const CANDIDATE_PHONES = [
+  (process.env.CANDIDATE_WHATSAPP || '923255984244').replace(/[^\d]/g, ''),
+  (process.env.CANDIDATE_BACKUP_WHATSAPP || '923179500901').replace(/[^\d]/g, '')
+];
 
-// Instant candidate problem & health alert handler (Sends WhatsApp + Email on any issue)
+async function sendCandidateAlert(alertMsg) {
+  if (isOnline && client && typeof client.sendMessage === 'function') {
+    for (const phone of CANDIDATE_PHONES) {
+      if (phone && phone.length >= 10) {
+        try {
+          await client.sendMessage(`${phone}@c.us`, alertMsg);
+          console.log(`📱 [ALERT DELIVERED] Notification sent to candidate WhatsApp (+${phone})`);
+        } catch (e) {
+          console.log(`Notice sending alert to +${phone}: ${e.message}`);
+        }
+      }
+    }
+  }
+}
+
+// Instant candidate problem & health alert handler (Sends WhatsApp to both numbers + Email on any issue)
 async function sendSystemProblemAlert(problemTitle, details) {
   console.log(`⚠️ [SYSTEM ALERT] ${problemTitle}: ${details}`);
-  if (isOnline && client && typeof client.sendMessage === 'function') {
-    try {
-      const msg = `⚠️ *[RIZAGENT SYSTEM ALERT]*\n\n📌 *Issue:* ${problemTitle}\n📝 *Details:* ${details}\n🕒 *Time:* ${new Date().toLocaleTimeString()}\n\n_System auto-recovery routines are active._`;
-      await client.sendMessage(`${CANDIDATE_PHONE}@c.us`, msg);
-    } catch (e) {}
-  }
+  const msg = `⚠️ *[RIZAGENT SYSTEM ALERT]*\n\n📌 *Issue:* ${problemTitle}\n📝 *Details:* ${details}\n🕒 *Time:* ${new Date().toLocaleTimeString()}\n\n_System auto-recovery routines are active._`;
+  await sendCandidateAlert(msg);
   if (mailTransporter) {
     try {
       await mailTransporter.sendMail({
@@ -695,7 +709,7 @@ async function processIncomingMessage(msg, preloadedChat = null) {
     // FEATURE 2: AI RECRUITER AUTO-RESPONDER
     if (isDirectChat) {
       const senderNumber = (msg.from || '').replace(/[^\d]/g, '');
-      const isCandidateSelf = senderNumber.includes(candidateAlertPhone) || candidateAlertPhone.includes(senderNumber);
+      const isCandidateSelf = CANDIDATE_PHONES.some(p => p && senderNumber.endsWith(p.slice(-10)));
 
       // Check if message looks like a recruiter inquiry rather than a broadcast
       const lowerMsg = text.toLowerCase();
@@ -711,6 +725,7 @@ async function processIncomingMessage(msg, preloadedChat = null) {
         lowerMsg.includes('experience') ||
         lowerMsg.includes('resume') ||
         lowerMsg.includes('portfolio') ||
+        lowerMsg.includes('hire') ||
         lowerMsg.includes('when can you') ||
         lowerMsg.includes('share your');
 
@@ -720,8 +735,8 @@ async function processIncomingMessage(msg, preloadedChat = null) {
 
         if (lowerMsg.includes('salary') || lowerMsg.includes('expectation') || lowerMsg.includes('rate') || lowerMsg.includes('budget')) {
           autoReply = `Salam! Thank you for inquiring. My compensation expectations are competitive and aligned with the role scope and market standard. I am flexible for the right opportunity.\n\nWhen would be a good time for a brief intro chat? I am available via WhatsApp, Google Meet, or phone call.\n\nBest regards,\n${candidateName}`;
-        } else if (lowerMsg.includes('interview') || lowerMsg.includes('available') || lowerMsg.includes('call') || lowerMsg.includes('meet')) {
-          autoReply = `Salam! Yes, I am available immediately for an interview call. Please let me know what day and time works best for your team (Google Meet / Zoom / WhatsApp call: +92 325 5984244). Looking forward to speaking!\n\nBest regards,\n${candidateName}`;
+        } else if (lowerMsg.includes('interview') || lowerMsg.includes('available') || lowerMsg.includes('call') || lowerMsg.includes('meet') || lowerMsg.includes('hire')) {
+          autoReply = `Salam! Yes, I am available immediately for an interview call. Please let me know what day and time works best for your team (Google Meet / Zoom / WhatsApp call: +92 325 5984244 / +92 317 9500901). Looking forward to speaking!\n\nBest regards,\n${candidateName}`;
         } else {
           autoReply = `Salam! Thank you for reaching out regarding the position. I am very interested and available immediately to discuss how I can contribute to your team.\n\nKey Links:\n- 🌐 Portfolio: ${portfolio}\n- 💻 GitHub: ${github}\n- 💼 LinkedIn: ${linkedin}\n- 📞 Phone / WhatsApp: +92 325 5984244\n\nLooking forward to speaking!\n\nBest regards,\n${candidateName}`;
         }
@@ -730,15 +745,13 @@ async function processIncomingMessage(msg, preloadedChat = null) {
           await chat.sendMessage(autoReply);
           console.log(`🤖 [AI AUTO-REPLY SENT] Answered recruiter (+${senderNumber}) with interview availability & contact details!`);
 
-          // FEATURE 1: Send instant alert to candidate's personal phone
-          if (candidateAlertPhone) {
-            const recruiterAlert = `🚨 *[RECRUITER REPLIED TO YOU!]*\n\n` +
-              `👤 *From Recruiter:* +${senderNumber}\n` +
-              `💬 *Recruiter Said:* "${text}"\n` +
-              `🤖 *Bot Auto-Replied:* Yes (Confirmed availability for interview call)\n\n` +
-              `📱 Open WhatsApp to continue chatting with them!`;
-            await client.sendMessage(`${candidateAlertPhone}@c.us`, recruiterAlert);
-          }
+          // FEATURE 1: Send instant alert to candidate's primary and backup phones (+923255984244 & +923179500901)
+          const recruiterAlert = `🚨 *[RECRUITER REPLIED / INTERVIEW INQUIRY!]*\n\n` +
+            `👤 *From Recruiter:* +${senderNumber}\n` +
+            `💬 *Recruiter Said:* "${text}"\n` +
+            `🤖 *Bot Auto-Replied:* Yes (Confirmed availability for interview call)\n\n` +
+            `📱 Open WhatsApp on your phone to reply to them directly!`;
+          await sendCandidateAlert(recruiterAlert);
         } catch (repErr) {
           console.log(`ℹ️ Auto-reply notice: ${repErr.message}`);
         }
@@ -1034,20 +1047,17 @@ Email: rizwangul535@gmail.com`;
               : []
           });
           console.log(`📧 [EMAIL SENT] Application & CV PDF emailed successfully to recruiter: ${targetEmail}`);
-          if (candidateAlertPhone) {
-            try {
-              const alertMsg = `🔔 *[AUTONOMOUS JOB APPLICATION SENT]*\n\n` +
-                `🏢 *Company:* ${company}\n` +
-                `💼 *Role:* ${title}\n` +
-                `📊 *Match Score:* ${score}%\n` +
-                `📩 *Channel:* Direct Email (${targetEmail})\n` +
-                `📄 *CV:* Resume.pdf Attached\n` +
-                `📞 *Phone / WhatsApp:* +92 325 5984244\n` +
-                `⏰ *Time:* ${new Date().toLocaleTimeString()}`;
-              await client.sendMessage(`${candidateAlertPhone}@c.us`, alertMsg);
-              console.log(`📱 [ALERT DELIVERED] Private notification sent to candidate WhatsApp (+${candidateAlertPhone})`);
-            } catch (aErr) {}
-          }
+          try {
+            const alertMsg = `🔔 *[AUTONOMOUS JOB APPLICATION SENT]*\n\n` +
+              `🏢 *Company:* ${company}\n` +
+              `💼 *Role:* ${title}\n` +
+              `📊 *Match Score:* ${score}%\n` +
+              `📩 *Channel:* Direct Email (${targetEmail})\n` +
+              `📄 *CV:* Resume.pdf Attached\n` +
+              `📞 *Phone / WhatsApp:* +92 325 5984244 / +92 317 9500901\n` +
+              `⏰ *Time:* ${new Date().toLocaleTimeString()}`;
+            await sendCandidateAlert(alertMsg);
+          } catch (aErr) {}
         } catch (mailErr) {
           console.log(`⚠️ Email dispatch notice: ${mailErr.message}`);
         }
@@ -1112,20 +1122,17 @@ Email: rizwangul535@gmail.com`;
               await client.sendMessage(recipientId, pitch);
             }
             console.log(`💬 [WHATSAPP OUTREACH] Pitch with Portfolio, GitHub & LinkedIn sent to recruiter (+${cleanPhone})!`);
-            if (candidateAlertPhone) {
-              try {
-                const alertMsg = `🔔 *[AUTONOMOUS WHATSAPP APPLICATION SENT]*\n\n` +
-                  `🏢 *Company:* ${company}\n` +
-                  `💼 *Role:* ${title}\n` +
-                  `📊 *Match Score:* ${score}%\n` +
-                  `💬 *Channel:* WhatsApp Recruiter DM (+${cleanPhone})\n` +
-                  `📄 *CV:* Attached & Pitch Delivered\n` +
-                  `📞 *Phone / WhatsApp:* +92 325 5984244\n` +
-                  `⏰ *Time:* ${new Date().toLocaleTimeString()}`;
-                await client.sendMessage(`${candidateAlertPhone}@c.us`, alertMsg);
-                console.log(`📱 [ALERT DELIVERED] Private notification sent to candidate WhatsApp (+${candidateAlertPhone})`);
-              } catch (aErr) {}
-            }
+            try {
+              const alertMsg = `🔔 *[AUTONOMOUS WHATSAPP APPLICATION SENT]*\n\n` +
+                `🏢 *Company:* ${company}\n` +
+                `💼 *Role:* ${title}\n` +
+                `📊 *Match Score:* ${score}%\n` +
+                `💬 *Channel:* WhatsApp Recruiter DM (+${cleanPhone})\n` +
+                `📄 *CV:* Attached & Pitch Delivered\n` +
+                `📞 *Phone / WhatsApp:* +92 325 5984244 / +92 317 9500901\n` +
+                `⏰ *Time:* ${new Date().toLocaleTimeString()}`;
+              await sendCandidateAlert(alertMsg);
+            } catch (aErr) {}
 
             // Send CV attachment with document flag and brief pause for chat creation
             if (cvPath && fs.existsSync(cvPath)) {
@@ -1294,21 +1301,18 @@ Email: rizwangul535@gmail.com`;
                 });
                 console.log(`📧 [AUTO-APPLY EMAIL SENT] Resume.pdf emailed to recruiter at ${targetRecruiterEmail} for ${resolvedTitle} at ${resolvedCompany}!`);
 
-                if (candidateAlertPhone) {
-                  try {
-                    const alertMsg = `🎉 *[AUTONOMOUS JOB APPLICATION SENT]*\n\n` +
-                      `💼 *Position:* ${resolvedTitle}\n` +
-                      `🏢 *Company:* ${resolvedCompany}\n` +
-                      `📩 *Channel:* Recruiter Email (${targetRecruiterEmail})\n` +
-                      `🌐 *Job Link:* ${targetApplyUrl}\n` +
-                      `📄 *CV Attached:* Resume.pdf\n` +
-                      `📞 *Your Contact:* +92 325 5984244\n` +
-                      `⏰ *Time:* ${new Date().toLocaleTimeString()}\n\n` +
-                      `_RizAgent autonomously opened the link from WhatsApp and applied for you!_`;
-                    await client.sendMessage(`${candidateAlertPhone}@c.us`, alertMsg);
-                    console.log(`📱 [ALERT DELIVERED] Application confirmation sent to candidate WhatsApp (+${candidateAlertPhone})`);
-                  } catch (aErr) {}
-                }
+                try {
+                  const alertMsg = `🎉 *[AUTONOMOUS JOB APPLICATION SENT]*\n\n` +
+                    `💼 *Position:* ${resolvedTitle}\n` +
+                    `🏢 *Company:* ${resolvedCompany}\n` +
+                    `📩 *Channel:* Recruiter Email (${targetRecruiterEmail})\n` +
+                    `🌐 *Job Link:* ${targetApplyUrl}\n` +
+                    `📄 *CV Attached:* Resume.pdf\n` +
+                    `📞 *Your Contact:* +92 325 5984244 / +92 317 9500901\n` +
+                    `⏰ *Time:* ${new Date().toLocaleTimeString()}\n\n` +
+                    `_RizAgent autonomously opened the link from WhatsApp and applied for you!_`;
+                  await sendCandidateAlert(alertMsg);
+                } catch (aErr) {}
               } catch (mailErr) {
                 console.log(`⚠️ Email notice: ${mailErr.message}`);
               }
@@ -1419,20 +1423,18 @@ Email: rizwangul535@gmail.com`;
                 console.log(`✅ [FORM AUTO-FILLED] Candidate details filled on ${targetApplyUrl}!`);
               }
 
-              // Send candidate confirmation alert
-              if (candidateAlertPhone) {
-                try {
-                  const alertMsg = `🎉 *[DIRECT LINK / FORM APPLICATION SUBMITTED]*\n\n` +
-                    `💼 *Position:* ${resolvedTitle}\n` +
-                    `🏢 *Company:* ${resolvedCompany}\n` +
-                    `🌐 *Application Link:* ${targetApplyUrl}\n` +
-                    `📝 *Status:* Form auto-filled with candidate credentials & Resume.pdf\n` +
-                    `📞 *Your Contact:* +92 325 5984244\n` +
-                    `⏰ *Time:* ${new Date().toLocaleTimeString()}\n\n` +
-                    `_RizAgent autonomously applied to the link for you!_`;
-                  await client.sendMessage(`${candidateAlertPhone}@c.us`, alertMsg);
-                } catch (e) {}
-              }
+              // Send candidate confirmation alert to both numbers
+              try {
+                const alertMsg = `🎉 *[DIRECT LINK / FORM APPLICATION SUBMITTED]*\n\n` +
+                  `💼 *Position:* ${resolvedTitle}\n` +
+                  `🏢 *Company:* ${resolvedCompany}\n` +
+                  `🌐 *Application Link:* ${targetApplyUrl}\n` +
+                  `📝 *Status:* Form auto-filled with candidate credentials & Resume.pdf\n` +
+                  `📞 *Your Contact:* +92 325 5984244 / +92 317 9500901\n` +
+                  `⏰ *Time:* ${new Date().toLocaleTimeString()}\n\n` +
+                  `_RizAgent autonomously applied to the link for you!_`;
+                await sendCandidateAlert(alertMsg);
+              } catch (e) {}
             } catch (formErr) {
               console.log(`ℹ️ Form autofill notice: ${formErr.message}`);
             } finally {
