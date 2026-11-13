@@ -49,7 +49,7 @@ function extractEmails(text) {
 async function fetchRemotiveJobs() {
   const jobs = [];
   try {
-    const res = await fetch('https://remotive.com/api/remote-jobs?category=software-dev&limit=30', {
+    const res = await fetch('https://remotive.com/api/remote-jobs?category=software-dev&limit=80', {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
       signal: AbortSignal.timeout(12000)
     });
@@ -76,7 +76,7 @@ async function fetchRemotiveJobs() {
 async function fetchJobicyJobs(tag = 'react') {
   const jobs = [];
   try {
-    const res = await fetch(`https://jobicy.com/api/v2/remote-jobs?count=25&tag=${tag}`, {
+    const res = await fetch(`https://jobicy.com/api/v2/remote-jobs?count=50&tag=${tag}`, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
       signal: AbortSignal.timeout(12000)
     });
@@ -184,32 +184,147 @@ async function fetchHimalayasJobs() {
   return jobs;
 }
 
+async function fetchWeWorkRemotelyJobs() {
+  const jobs = [];
+  const feeds = [
+    'https://weworkremotely.com/categories/remote-programming-jobs.rss',
+    'https://weworkremotely.com/categories/remote-full-stack-programming-jobs.rss',
+    'https://weworkremotely.com/categories/remote-front-end-programming-jobs.rss',
+    'https://weworkremotely.com/categories/remote-back-end-programming-jobs.rss'
+  ];
+
+  for (const feedUrl of feeds) {
+    try {
+      const res = await fetch(feedUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+        signal: AbortSignal.timeout(10000)
+      });
+      if (res.ok) {
+        const xml = await res.text();
+        const items = xml.match(/<item>[\s\S]*?<\/item>/gi) || [];
+        for (const item of items) {
+          const titleMatch = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/) || item.match(/<title>(.*?)<\/title>/);
+          const linkMatch = item.match(/<link>(.*?)<\/link>/);
+          const descMatch = item.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/) || item.match(/<description>([\s\S]*?)<\/description>/);
+          const guidMatch = item.match(/<guid[^>]*>(.*?)<\/guid>/);
+
+          if (titleMatch && linkMatch) {
+            const rawTitle = titleMatch[1].trim();
+            const parts = rawTitle.split(':');
+            const company = parts.length > 1 ? parts[0].trim() : 'Tech Company';
+            const title = parts.length > 1 ? parts.slice(1).join(':').trim() : rawTitle;
+            const url = linkMatch[1].trim();
+            const id = guidMatch ? `wwr_${guidMatch[1].replace(/[^a-zA-Z0-9]/g, '')}` : `wwr_${Buffer.from(url).toString('base64').slice(0, 20)}`;
+            const description = descMatch ? descMatch[1].replace(/<[^>]+>/g, ' ').trim() : '';
+
+            jobs.push({
+              id,
+              title,
+              company,
+              url,
+              location: 'Remote',
+              description,
+              source: 'weworkremotely'
+            });
+          }
+        }
+      }
+    } catch (e) {}
+  }
+  return jobs;
+}
+
+async function fetchHackerNewsWhoIsHiring() {
+  const jobs = [];
+  try {
+    const userRes = await fetch('https://hacker-news.firebaseio.com/v0/user/whoishiring.json', { signal: AbortSignal.timeout(8000) });
+    if (!userRes.ok) return jobs;
+    const userData = await userRes.json();
+    const threadId = userData.submitted ? userData.submitted[0] : null;
+    if (!threadId) return jobs;
+
+    const threadRes = await fetch(`https://hacker-news.firebaseio.com/v0/item/${threadId}.json`, { signal: AbortSignal.timeout(8000) });
+    if (!threadRes.ok) return jobs;
+    const thread = await threadRes.json();
+    const commentIds = (thread.kids || []).slice(0, 80);
+
+    for (let i = 0; i < commentIds.length; i += 10) {
+      const batch = commentIds.slice(i, i + 10);
+      const fetched = await Promise.all(
+        batch.map(id => fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`, { signal: AbortSignal.timeout(6000) }).then(r => r.json()).catch(() => null))
+      );
+
+      for (const item of fetched) {
+        if (!item || !item.text || item.deleted) continue;
+        const plain = item.text.replace(/<[^>]+>/g, ' ').replace(/&#x2F;/g, '/').replace(/&amp;/g, '&');
+        const firstLine = plain.split('\n')[0].trim();
+        const parts = firstLine.split('|');
+        const company = parts.length > 0 ? parts[0].trim() : 'Tech Startup';
+        const title = parts.length > 1 ? parts[1].trim() : 'Software Engineer';
+        const location = parts.length > 2 ? parts[2].trim() : 'Remote';
+
+        jobs.push({
+          id: `hn_${item.id}`,
+          title: title.length > 60 ? title.substring(0, 60) : title,
+          company: company.length > 40 ? company.substring(0, 40) : company,
+          url: `https://news.ycombinator.com/item?id=${item.id}`,
+          location,
+          description: plain,
+          source: 'hackernews'
+        });
+      }
+    }
+  } catch (e) {
+    console.log(`ℹ️ HackerNews API Notice: ${e.message}`);
+  }
+  return jobs;
+}
+
 async function scanHighVolumeRemoteJobs(whatsappClient = null) {
   console.log('\n======================================================');
   console.log('🚀 STARTING HIGH-VOLUME GLOBAL DEVELOPER JOB RADAR');
   console.log(`   Candidate: ${CANDIDATE.name} (${CANDIDATE.email})`);
-  console.log(`   Targets: Remotive, Jobicy, RemoteOK, Arbeitnow, Himalayas`);
+  console.log(`   Targets: Remotive, Jobicy, RemoteOK, Arbeitnow, Himalayas, WeWorkRemotely, HackerNews`);
   console.log('======================================================\n');
 
   let totalDispatched = 0;
 
-  // 1. Fetch from high-volume sources in parallel
-  const [remotiveJobs, jobicyReact, jobicyFullStack, remoteOkJobs, arbeitJobs, himalayasJobs] = await Promise.all([
+  // 1. Fetch from 8 high-volume global sources in parallel
+  const [
+    remotiveJobs,
+    jobicyReact,
+    jobicyFullStack,
+    jobicyNode,
+    jobicyPython,
+    remoteOkJobs,
+    arbeitJobs,
+    himalayasJobs,
+    wwrJobs,
+    hnJobs
+  ] = await Promise.all([
     fetchRemotiveJobs(),
     fetchJobicyJobs('react'),
     fetchJobicyJobs('full-stack'),
+    fetchJobicyJobs('nodejs'),
+    fetchJobicyJobs('python'),
     fetchRemoteOkJobs(),
     fetchArbeitnowJobs(),
-    fetchHimalayasJobs()
+    fetchHimalayasJobs(),
+    fetchWeWorkRemotelyJobs(),
+    fetchHackerNewsWhoIsHiring()
   ]);
 
   const allJobs = [
     ...remotiveJobs,
     ...jobicyReact,
     ...jobicyFullStack,
+    ...jobicyNode,
+    ...jobicyPython,
     ...remoteOkJobs,
     ...arbeitJobs,
-    ...himalayasJobs
+    ...himalayasJobs,
+    ...wwrJobs,
+    ...hnJobs
   ];
   console.log(`📊 Total Fresh Remote Jobs Ingested: ${allJobs.length}`);
 

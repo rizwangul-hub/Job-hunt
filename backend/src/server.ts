@@ -38,13 +38,13 @@ async function bootstrap() {
         scanHighVolumeRemoteJobs().catch((err: any) => logger.warn(`Cloud radar run notice: ${err.message}`));
       }, 15000);
 
-      // Schedule automated scans every 20 minutes continuously 24/7
+      // Schedule automated scans every 15 minutes continuously 24/7 (96 scans/day)
       setInterval(() => {
-        logger.info('🚀 [CLOUD 24/7 RADAR] Running scheduled 20-minute autonomous job scan...');
+        logger.info('🚀 [CLOUD 24/7 RADAR] Running scheduled 15-minute autonomous job scan...');
         scanHighVolumeRemoteJobs().catch((err: any) => logger.warn(`Cloud radar run notice: ${err.message}`));
-      }, 20 * 60 * 1000);
+      }, 15 * 60 * 1000);
 
-      logger.info('✅ 24/7 Autonomous Cloud Hunter active (Scanning & Auto-Applying every 20 minutes).');
+      logger.info('✅ 24/7 Autonomous Cloud Hunter active (Scanning & Auto-Applying every 15 minutes).');
     } catch (hunterErr: any) {
       logger.warn(`Could not start cloud hunter: ${hunterErr.message}`);
     }
