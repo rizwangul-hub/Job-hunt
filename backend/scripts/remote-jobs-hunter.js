@@ -328,6 +328,8 @@ async function scanHighVolumeRemoteJobs(whatsappClient = null) {
   ];
   console.log(`📊 Total Fresh Remote Jobs Ingested: ${allJobs.length}`);
 
+  let directLinksAlerted = 0;
+
   for (const job of allJobs) {
     if (!job || !job.title || !job.id) continue;
     if (processedJobIds.has(job.id)) continue;
@@ -402,10 +404,13 @@ async function scanHighVolumeRemoteJobs(whatsappClient = null) {
           signal: AbortSignal.timeout(6000)
         }).catch(() => null);
 
-        // Notify Rizwan on WhatsApp with direct 1-click apply link
-        if (whatsappClient && typeof whatsappClient.sendMessage === 'function') {
+        // Notify Rizwan on WhatsApp with direct 1-click apply link (Up to top 3 per scan to avoid notification flooding)
+        if (directLinksAlerted < 3 && whatsappClient && typeof whatsappClient.sendMessage === 'function') {
+          directLinksAlerted++;
           const alertMsg = `💼 *[DIRECT APPLY MATCH]*\n*Role:* ${job.title}\n*Company:* ${job.company}\n*Location:* ${job.location || 'Remote'}\n🔗 *Apply Link:* ${job.url}\n\n_Auto-screened for your Full-Stack Developer profile._`;
-          await whatsappClient.sendMessage(CANDIDATE.whatsappJid, alertMsg).catch(() => null);
+          for (const jid of (CANDIDATE.alertJids || [CANDIDATE.whatsappJid])) {
+            await whatsappClient.sendMessage(jid, alertMsg).catch(() => null);
+          }
         }
       } catch (recErr) {}
     }
