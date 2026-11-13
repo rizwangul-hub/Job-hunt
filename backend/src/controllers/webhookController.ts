@@ -163,12 +163,20 @@ Phone: ${user.phone}`;
     // DIRECT DISPATCH: If match >= threshold, auto-apply is eligible, not excluded, and not skipped by caller
     const defaultCV = user.cvs.find(c => c.isDefault) || user.cvs[0];
     const threshold = user.preferences?.minMatchThreshold || 30;
+    const isAlreadyDispatched = 
+      Boolean(req.body.skipAutoApply) || 
+      Boolean(req.body.onlyIngest) || 
+      Boolean(req.body.applied) || 
+      Boolean(req.body.job && req.body.job.applied) || 
+      String(rawText || '').startsWith('AUTO-APPLY:') || 
+      String(rawText || '').startsWith('DIRECT APPLY ROLE:') ||
+      String(rawText || '').startsWith('LINKEDIN APPLICATION:');
+
     const shouldAutoApply = 
+      !isAlreadyDispatched &&
       evalResult.score >= threshold && 
       evalResult.isEligibleForAutoApply && 
-      targetEmail && 
-      !req.body.skipAutoApply && 
-      !req.body.onlyIngest;
+      targetEmail;
 
     if (shouldAutoApply) {
       try {

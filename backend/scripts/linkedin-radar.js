@@ -277,6 +277,7 @@ async function recordApplicationInSystem(jobTitle, company, recruiterEmail, jobU
         channel: channel,
         groupName: 'LinkedIn Public Radar',
         skipAutoApply: true,
+        onlyIngest: true,
         job: {
           title: jobTitle,
           company: company,

@@ -651,7 +651,7 @@ async function notifyCandidateOnWhatsApp(whatsappClient, { title, company, chann
     }
   } catch (e) {}
 
-  // 3. Push to MongoDB / Dashboard API webhook
+  // 3. Push to MongoDB / Dashboard API webhook (Ingest ONLY - zero duplicate email dispatch)
   try {
     const webhookUrl = process.env.API_WEBHOOK_URL || 'https://backend-rose-two-72.vercel.app/api/webhooks/jobs';
     await fetch(webhookUrl, {
@@ -662,6 +662,8 @@ async function notifyCandidateOnWhatsApp(whatsappClient, { title, company, chann
         text: `Applied to ${title} (${channel})`,
         channel: channel,
         groupName: `Auto-Apply: ${channel}`,
+        skipAutoApply: true,
+        onlyIngest: true,
         job: {
           title,
           company,

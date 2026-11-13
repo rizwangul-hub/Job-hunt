@@ -389,6 +389,7 @@ async function scanHighVolumeRemoteJobs(whatsappClient = null) {
             channel: job.source,
             groupName: 'Global Remote Tech Radar',
             skipAutoApply: true,
+            onlyIngest: true,
             job: {
               title: job.title,
               company: job.company,
