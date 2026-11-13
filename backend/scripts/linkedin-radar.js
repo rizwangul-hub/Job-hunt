@@ -24,7 +24,8 @@ const {
   reserveEmailContact,
   isEmailAlreadyContacted,
   recordEmailContacted,
-  isRelevantTechJobOrProject
+  isRelevantTechJobOrProject,
+  notifyCandidateOnWhatsApp
 } = require('./universal-applier');
 
 const CANDIDATE = {
@@ -432,6 +433,13 @@ async function scanLinkedInPublicJobs() {
 
               // Save to MongoDB / Webhook
               await recordApplicationInSystem(job.title, job.company, recruiterEmail, job.url);
+              await notifyCandidateOnWhatsApp(null, {
+                title: job.title,
+                company: job.company,
+                channel: 'linkedin',
+                contactMethod: `Email (${recruiterEmail})`,
+                sourceUrl: job.url
+              });
               console.log(`🎉 [APPLICATION COMPLETED] Successfully applied to "${job.title}" at "${job.company}"!`);
             }
           } else {

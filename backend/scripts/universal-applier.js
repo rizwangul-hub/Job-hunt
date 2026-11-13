@@ -577,27 +577,92 @@ async function sendApplicationWhatsApp(whatsappClient, { toPhone, title, company
   }
 }
 
-// Notify candidate Rizwan Ullah on WhatsApp
-async function notifyCandidateOnWhatsApp(whatsappClient, { title, company, channel, contactMethod }) {
-  const alertText = `🎉 *AUTO-APPLICATION DISPATCHED!*\n\n💼 *Position:* ${title}\n🏢 *Company:* ${company || 'Tech Recruiter'}\n📡 *Channel:* ${channel.toUpperCase()}\n✉️ *Method:* ${contactMethod}\n🕒 *Time:* ${new Date().toLocaleTimeString()}\n\n_RizAgent is continuing to hunt 24/7 across WhatsApp, LinkedIn, Facebook & Instagram!_`;
+// Notify candidate Rizwan Ullah on WhatsApp and Email with full company & job source details
+async function notifyCandidateOnWhatsApp(whatsappClient, { title, company, channel, contactMethod, sourceUrl = null }) {
+  const urlDisplay = sourceUrl ? `\n🔗 *Job Post Link:* ${sourceUrl}` : '';
+  const alertText = `🎉 *AUTO-APPLICATION DISPATCHED!*\n\n💼 *Role:* ${title}\n🏢 *Company:* ${company || 'Tech Company'}\n📡 *Found On:* ${channel.toUpperCase()}\n✉️ *Applied To:* ${contactMethod}${urlDisplay}\n🕒 *Time:* ${new Date().toLocaleString()}\n\n_Applied automatically with your Resume.pdf, Portfolio, LinkedIn & GitHub!_`;
 
-  if (whatsappClient) {
+  // 1. WhatsApp Notification directly to your phone
+  if (whatsappClient && typeof whatsappClient.sendMessage === 'function') {
     try {
       await whatsappClient.sendMessage(CANDIDATE.whatsappJid, alertText);
     } catch (e) {}
   }
 
-  // Also push to API webhook
+  // 2. Email Notification to rizwangul535@gmail.com (Guarantees you receive details even if WhatsApp is offline)
+  try {
+    const t = getTransporter();
+    if (t && CANDIDATE.email) {
+      await t.sendMail({
+        from: `"RizAgent Autonomous Hunter" <${CANDIDATE.email}>`,
+        to: CANDIDATE.email,
+        subject: `🚀 [APPLICATION DISPATCHED] ${title} at ${company} (via ${channel.toUpperCase()})`,
+        html: `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; padding: 24px; color: #1e293b;">
+            <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+              <div style="background: #2563eb; padding: 20px 24px; color: #ffffff;">
+                <h2 style="margin: 0; font-size: 20px; font-weight: 700;">🎉 Application Successfully Dispatched!</h2>
+                <p style="margin: 6px 0 0 0; opacity: 0.95; font-size: 14px;">RizAgent automatically applied on your behalf.</p>
+              </div>
+              <div style="padding: 24px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 15px;">
+                  <tr>
+                    <td style="padding: 10px 0; color: #64748b; font-weight: 600; width: 140px;">💼 Role:</td>
+                    <td style="padding: 10px 0; font-weight: 700; color: #0f172a;">${title}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 0; color: #64748b; font-weight: 600;">🏢 Company:</td>
+                    <td style="padding: 10px 0; color: #0f172a; font-weight: 600;">${company || 'Tech Company'}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 0; color: #64748b; font-weight: 600;">📡 Found On:</td>
+                    <td style="padding: 10px 0;"><span style="background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 13px;">${channel.toUpperCase()}</span></td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 0; color: #64748b; font-weight: 600;">✉️ Recruiter Contact:</td>
+                    <td style="padding: 10px 0; color: #0f172a; font-family: monospace; font-weight: 600;">${contactMethod}</td>
+                  </tr>
+                  ${sourceUrl ? `
+                  <tr>
+                    <td style="padding: 10px 0; color: #64748b; font-weight: 600;">🔗 Original Post:</td>
+                    <td style="padding: 10px 0;"><a href="${sourceUrl}" target="_blank" style="color: #2563eb; font-weight: 600; text-decoration: underline; word-break: break-all;">View Job Post Online</a></td>
+                  </tr>
+                  ` : ''}
+                  <tr>
+                    <td style="padding: 10px 0; color: #64748b; font-weight: 600;">🕒 Dispatched At:</td>
+                    <td style="padding: 10px 0; color: #64748b; font-size: 13px;">${new Date().toLocaleString()}</td>
+                  </tr>
+                </table>
+                <div style="margin-top: 20px; padding: 14px; background: #f1f5f9; border-radius: 8px; font-size: 13px; color: #475569; line-height: 1.5;">
+                  📎 <strong>Dispatched Assets:</strong> Resume.pdf, Portfolio (<a href="https://full-stack-portfolio-coral.vercel.app" style="color:#2563eb;">full-stack-portfolio-coral.vercel.app</a>), LinkedIn, and GitHub profile.
+                </div>
+              </div>
+            </div>
+          </div>
+        `
+      }).catch(() => null);
+    }
+  } catch (e) {}
+
+  // 3. Push to MongoDB / Dashboard API webhook
   try {
     const webhookUrl = process.env.API_WEBHOOK_URL || 'https://backend-rose-two-72.vercel.app/api/webhooks/jobs';
     await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        rawText: `AUTO-APPLY: Dispatched application for ${title} at ${company || 'Tech Company'} via ${channel}. Method: ${contactMethod}`,
+        rawText: `AUTO-APPLY: Dispatched application for ${title} at ${company || 'Tech Company'} via ${channel}. URL: ${sourceUrl || 'N/A'}. Method: ${contactMethod}`,
         text: `Applied to ${title} (${channel})`,
         channel: channel,
-        groupName: `Auto-Apply: ${channel}`
+        groupName: `Auto-Apply: ${channel}`,
+        job: {
+          title,
+          company,
+          applyUrl: sourceUrl,
+          applied: true,
+          status: 'applied',
+          appliedAt: new Date()
+        }
       })
     }).catch(() => null);
   } catch (e) {}
@@ -657,7 +722,8 @@ async function executeUniversalApply({
       title,
       company,
       channel,
-      contactMethod: methods.join(' & ')
+      contactMethod: methods.join(' & '),
+      sourceUrl: applyUrl
     });
     return true;
   } else {
