@@ -57,6 +57,29 @@ if (process.env.SMTP_USER && process.env.SMTP_PASS) {
   });
 }
 
+const CANDIDATE_PHONE = (process.env.CANDIDATE_WHATSAPP || '923255984244').replace(/[^\d]/g, '');
+
+// Instant candidate problem & health alert handler (Sends WhatsApp + Email on any issue)
+async function sendSystemProblemAlert(problemTitle, details) {
+  console.log(`⚠️ [SYSTEM ALERT] ${problemTitle}: ${details}`);
+  if (isOnline && client && typeof client.sendMessage === 'function') {
+    try {
+      const msg = `⚠️ *[RIZAGENT SYSTEM ALERT]*\n\n📌 *Issue:* ${problemTitle}\n📝 *Details:* ${details}\n🕒 *Time:* ${new Date().toLocaleTimeString()}\n\n_System auto-recovery routines are active._`;
+      await client.sendMessage(`${CANDIDATE_PHONE}@c.us`, msg);
+    } catch (e) {}
+  }
+  if (mailTransporter) {
+    try {
+      await mailTransporter.sendMail({
+        from: `"RizAgent System Monitor" <${process.env.SMTP_FROM || process.env.SMTP_USER || 'rizwangul535@gmail.com'}>`,
+        to: process.env.SMTP_USER || 'rizwangul535@gmail.com',
+        subject: `⚠️ [RIZAGENT ALERT] ${problemTitle}`,
+        text: `RizAgent System Notification:\n\nIssue: ${problemTitle}\nDetails: ${details}\nTime: ${new Date().toLocaleString()}`
+      });
+    } catch (e) {}
+  }
+}
+
 // Find CV file
 function findCV() {
   const rootCv = path.join(__dirname, '../uploads/Resume.pdf');
@@ -227,6 +250,7 @@ client.on('authenticated', () => {
 
 client.on('auth_failure', (msg) => {
   console.error('❌ WhatsApp authentication failed:', msg);
+  sendSystemProblemAlert('WhatsApp Authentication Failure', `WhatsApp session auth failed: ${msg}. A re-scan of the QR code may be required.`);
 });
 
 let isReconnecting = false;
@@ -234,6 +258,7 @@ client.on('disconnected', (reason) => {
   isOnline = false;
   botStatus = `Disconnected: ${reason}. Auto-reconnecting...`;
   console.log(`⚠️ WhatsApp session disconnected (Reason: ${reason}). Auto-reconnecting in 5s...`);
+  sendSystemProblemAlert('WhatsApp Session Disconnected', `WhatsApp Web disconnected (Reason: ${reason}). Auto-reconnection in progress.`);
   
   if (!isReconnecting) {
     isReconnecting = true;
