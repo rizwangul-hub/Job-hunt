@@ -26,6 +26,29 @@ async function bootstrap() {
       logger.info(`Ready for requests from frontend: ${env.CLIENT_URL}`);
     });
 
+    // 5. Activate 24/7 Autonomous Cloud Job Hunter & Applier
+    try {
+      const path = require('path');
+      const hunterPath = path.resolve(__dirname, '../scripts/remote-jobs-hunter.js');
+      const { scanHighVolumeRemoteJobs } = require(hunterPath);
+
+      // Trigger first scan 15 seconds after boot
+      setTimeout(() => {
+        logger.info('🚀 [CLOUD 24/7 RADAR] Initiating autonomous remote job hunt in cloud...');
+        scanHighVolumeRemoteJobs().catch((err: any) => logger.warn(`Cloud radar run notice: ${err.message}`));
+      }, 15000);
+
+      // Schedule automated scans every 20 minutes continuously 24/7
+      setInterval(() => {
+        logger.info('🚀 [CLOUD 24/7 RADAR] Running scheduled 20-minute autonomous job scan...');
+        scanHighVolumeRemoteJobs().catch((err: any) => logger.warn(`Cloud radar run notice: ${err.message}`));
+      }, 20 * 60 * 1000);
+
+      logger.info('✅ 24/7 Autonomous Cloud Hunter active (Scanning & Auto-Applying every 20 minutes).');
+    } catch (hunterErr: any) {
+      logger.warn(`Could not start cloud hunter: ${hunterErr.message}`);
+    }
+
     // Graceful Shutdown
     const shutdown = async () => {
       logger.info('Shutting down server gracefully...');
