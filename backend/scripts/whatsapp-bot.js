@@ -25,15 +25,15 @@ const {
 // Safe Monkey-Patch: Protect against WhatsApp Web module structure race conditions in Client.inject
 const originalInject = Client.prototype.inject;
 Client.prototype.inject = async function() {
-  for (let attempt = 1; attempt <= 4; attempt++) {
+  for (let attempt = 1; attempt <= 6; attempt++) {
     try {
       return await originalInject.apply(this, arguments);
     } catch (err) {
       const msg = err && err.message ? err.message : String(err);
-      if (msg.includes('Socket') || msg.includes('auth timeout')) {
-        console.log(`🛡️ [SOCKET SHIELD] WhatsApp Web module sync in progress (Attempt ${attempt}/4). Retrying in 2.5s...`);
-        await new Promise(r => setTimeout(r, 2500));
-        if (attempt === 4) throw err;
+      if (msg.includes('Socket') || msg.includes('auth timeout') || msg.includes('Execution context was destroyed') || msg.includes('Cannot find context')) {
+        console.log(`🛡️ [SOCKET SHIELD] WhatsApp Web module/context sync in progress (Attempt ${attempt}/6). Retrying in 3s...`);
+        await new Promise(r => setTimeout(r, 3000));
+        if (attempt === 6) throw err;
       } else {
         throw err;
       }
