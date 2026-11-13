@@ -126,40 +126,6 @@ const client = new Client({
   webVersionCache: {
     type: 'none'
   },
-  evalOnNewDoc: () => {
-    // Client-side shim: Guarantees window.require('WAWebSocketModel').Socket is never null
-    const patchRequire = () => {
-      if (window.require && !window._waSocketShimmed) {
-        window._waSocketShimmed = true;
-        const origRequire = window.require;
-        window.require = function(mod) {
-          try {
-            const res = origRequire.apply(this, arguments);
-            if (res) return res;
-          } catch (e) {}
-          if (mod === 'WAWebSocketModel') {
-            return {
-              Socket: {
-                state: 'UNPAIRED',
-                on: function() {},
-                off: function() {},
-                reconnect: function() {},
-                logout: function() {},
-                takeover: function() {}
-              }
-            };
-          }
-          if (mod === 'WAWebUserPrefsMultiDevice') {
-            return {
-              getADVSecretKey: function() { return ''; }
-            };
-          }
-          return {};
-        };
-      }
-    };
-    setInterval(patchRequire, 50);
-  },
   puppeteer: {
     headless: true,
     executablePath: getSystemBrowserPath(),
