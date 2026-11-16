@@ -1,0 +1,26 @@
+name: 24/7 Cloud Job Hunter Keep-Alive
+
+on:
+  schedule:
+    # Run every 10 minutes continuously 24/7/365 to prevent Render free-tier sleep
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub UI anytime
+  push:
+    branches:
+      - main
+
+jobs:
+  keep-alive:
+    name: Ping Render Cloud Job Hunter
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping Keep-Alive & Trigger Autonomous Cloud Hunt
+        run: |
+          echo "Pinging RizAgent on Render to prevent sleep..."
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" --max-time 60 "https://rizagent-job-hunter.onrender.com/api/cron/keep-alive")
+          echo "$RESPONSE"
+          
+          # Fallback health check
+          curl -s -f --max-time 30 "https://rizagent-job-hunter.onrender.com/api/health" || true
+          echo "Keep-alive ping successfully delivered!"

@@ -45,6 +45,14 @@ async function bootstrap() {
       }, 15 * 60 * 1000);
 
       logger.info('✅ 24/7 Autonomous Cloud Hunter active (Scanning & Auto-Applying every 15 minutes).');
+
+      // 6. Anti-Sleep Keep-Alive Loop (Pings itself every 10 minutes to prevent Render free-tier sleep)
+      setInterval(() => {
+        const pingUrl = process.env.RENDER_EXTERNAL_URL 
+          ? `${process.env.RENDER_EXTERNAL_URL}/api/health` 
+          : 'https://rizagent-job-hunter.onrender.com/api/health';
+        fetch(pingUrl).catch(() => null);
+      }, 10 * 60 * 1000);
     } catch (hunterErr: any) {
       logger.warn(`Could not start cloud hunter: ${hunterErr.message}`);
     }

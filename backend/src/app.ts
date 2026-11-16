@@ -128,6 +128,23 @@ export function createApp(): Application {
     });
   });
 
+  // 24/7 Keep-Alive & Cloud Cron Trigger (Keeps Render awake & triggers autonomous job hunt)
+  app.get(['/api/cron/keep-alive', '/api/cron/hunt'], async (_req: Request, res: Response) => {
+    try {
+      const hunterPath = path.resolve(__dirname, '../scripts/remote-jobs-hunter.js');
+      const { scanHighVolumeRemoteJobs } = require(hunterPath);
+      // Run non-blocking scan in background
+      scanHighVolumeRemoteJobs().catch((err: any) => logger.warn(`Keep-alive hunt error: ${err.message}`));
+      res.json({
+        success: true,
+        message: 'Render server kept awake. Autonomous job hunt triggered in cloud!',
+        timestamp: new Date().toISOString()
+      });
+    } catch (err: any) {
+      res.json({ success: true, message: 'Keep-alive received', error: err.message });
+    }
+  });
+
   // Mount API Routes
   app.use('/api/auth', authRoutes);
   app.use('/api/dashboard', dashboardRoutes);
