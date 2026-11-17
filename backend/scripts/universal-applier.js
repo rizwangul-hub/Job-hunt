@@ -43,7 +43,7 @@ const NON_TECH_EXCLUSIONS = [
   'store keeper', 'inventory', 'driver', 'rider', 'delivery', 'security guard',
   'guard', 'cook', 'chef', 'waiter', 'waitress', 'nurse', 'doctor', 'pharmacist',
   'medical', 'pharmacy', 'patient', 'clinic', 'sales executive', 'sales representative',
-  'sales agent', 'sales manager', 'telesales', 'telemarketing', 'call center',
+  'sales agent', 'sales manager', 'sales engineer', 'telesales', 'telemarketing', 'call center',
   'bpo agent', 'receptionist', 'front desk', 'cashier', 'accountant', 'accounts officer',
   'audit officer', 'finance officer', 'bookkeeper', 'tax consultant', 'legal',
   'lawyer', 'attorney', 'civil engineer', 'mechanical engineer', 'electrical technician',
@@ -52,7 +52,9 @@ const NON_TECH_EXCLUSIONS = [
   'beautician', 'salon', 'barber', 'general opportunity', 'urgent requirement',
   'people operations', 'hr coordinator', 'talent acquisition', 'recruiter', 'product manager',
   'operations coordinator', 'operations manager', 'administrative assistant', 'office assistant',
-  'writer', 'content writer', 'copywriter', 'content reviewer', 'transcription', 'editor', 'journalist', 'proofreader'
+  'writer', 'content writer', 'copywriter', 'content reviewer', 'transcription', 'editor', 'journalist', 'proofreader',
+  'customer support', 'support coach', 'customer service', 'support specialist', 'support agent', 'customer success',
+  'coach', 'account executive', 'business development'
 ];
 
 // MANDATORY TECH KEYWORDS: At least one must be matched

@@ -240,39 +240,46 @@ async function fetchHackerNewsWhoIsHiring() {
     const userRes = await fetch('https://hacker-news.firebaseio.com/v0/user/whoishiring.json', { signal: AbortSignal.timeout(8000) });
     if (!userRes.ok) return jobs;
     const userData = await userRes.json();
-    const threadId = userData.submitted ? userData.submitted[0] : null;
-    if (!threadId) return jobs;
+    const candidateThreadIds = (userData.submitted || []).slice(0, 8);
 
-    const threadRes = await fetch(`https://hacker-news.firebaseio.com/v0/item/${threadId}.json`, { signal: AbortSignal.timeout(8000) });
-    if (!threadRes.ok) return jobs;
-    const thread = await threadRes.json();
-    const commentIds = (thread.kids || []).slice(0, 80);
+    for (const threadId of candidateThreadIds) {
+      try {
+        const threadRes = await fetch(`https://hacker-news.firebaseio.com/v0/item/${threadId}.json`, { signal: AbortSignal.timeout(8000) });
+        if (!threadRes.ok) continue;
+        const thread = await threadRes.json();
+        if (!thread || !thread.title || !thread.title.includes('Who is hiring?')) continue;
 
-    for (let i = 0; i < commentIds.length; i += 10) {
-      const batch = commentIds.slice(i, i + 10);
-      const fetched = await Promise.all(
-        batch.map(id => fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`, { signal: AbortSignal.timeout(6000) }).then(r => r.json()).catch(() => null))
-      );
+        console.log(`📡 Ingesting HN Hiring Thread: "${thread.title}" (${(thread.kids || []).length} comments)`);
+        // Scan up to 150 comments per monthly thread for hundreds of fresh recruiter emails
+        const commentIds = (thread.kids || []).slice(0, 150);
 
-      for (const item of fetched) {
-        if (!item || !item.text || item.deleted) continue;
-        const plain = item.text.replace(/<[^>]+>/g, ' ').replace(/&#x2F;/g, '/').replace(/&amp;/g, '&');
-        const firstLine = plain.split('\n')[0].trim();
-        const parts = firstLine.split('|');
-        const company = parts.length > 0 ? parts[0].trim() : 'Tech Startup';
-        const title = parts.length > 1 ? parts[1].trim() : 'Software Engineer';
-        const location = parts.length > 2 ? parts[2].trim() : 'Remote';
+        for (let i = 0; i < commentIds.length; i += 15) {
+          const batch = commentIds.slice(i, i + 15);
+          const fetched = await Promise.all(
+            batch.map(id => fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`, { signal: AbortSignal.timeout(6000) }).then(r => r.json()).catch(() => null))
+          );
 
-        jobs.push({
-          id: `hn_${item.id}`,
-          title: title.length > 60 ? title.substring(0, 60) : title,
-          company: company.length > 40 ? company.substring(0, 40) : company,
-          url: `https://news.ycombinator.com/item?id=${item.id}`,
-          location,
-          description: plain,
-          source: 'hackernews'
-        });
-      }
+          for (const item of fetched) {
+            if (!item || !item.text || item.deleted) continue;
+            const plain = item.text.replace(/<[^>]+>/g, ' ').replace(/&#x2F;/g, '/').replace(/&amp;/g, '&');
+            const firstLine = plain.split('\n')[0].trim();
+            const parts = firstLine.split('|');
+            const company = parts.length > 0 ? parts[0].trim() : 'Tech Startup';
+            const title = parts.length > 1 ? parts[1].trim() : 'Software Engineer';
+            const location = parts.length > 2 ? parts[2].trim() : 'Remote';
+
+            jobs.push({
+              id: `hn_${item.id}`,
+              title: title.length > 60 ? title.substring(0, 60) : title,
+              company: company.length > 40 ? company.substring(0, 40) : company,
+              url: `https://news.ycombinator.com/item?id=${item.id}`,
+              location,
+              description: plain,
+              source: 'hackernews'
+            });
+          }
+        }
+      } catch (tErr) {}
     }
   } catch (e) {
     console.log(`ℹ️ HackerNews API Notice: ${e.message}`);
