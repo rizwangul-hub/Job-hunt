@@ -296,50 +296,28 @@ function getTransporter() {
 
 // Generate tailored pitch & subject line
 function craftApplicationPitch(title, company, description = '') {
-  const combined = (title + ' ' + description).toLowerCase();
+  const combined = (title + ' ' + (description || '')).toLowerCase();
 
-  const hasProjectIntent = 
-    combined.includes('project') || 
-    combined.includes('freelance') || 
-    combined.includes('client') || 
-    combined.includes('gig') || 
-    combined.includes('contract') || 
-    combined.includes('build') || 
-    combined.includes('need') || 
-    combined.includes('looking for someone') || 
-    combined.includes('budget') ||
-    combined.includes('custom website') ||
-    combined.includes('landing page');
+  // Explicit freelance check: only when poster explicitly seeks a freelancer or freelance gig
+  const isFreelanceGig = 
+    (combined.includes('freelance gig') || 
+     combined.includes('freelance project') || 
+     combined.includes('looking for a freelancer') ||
+     combined.includes('hire a freelancer')) &&
+    !combined.includes('full-time') &&
+    !combined.includes('engineer') &&
+    !combined.includes('developer role');
 
-  const hasTechDeliverable = 
-    combined.includes('website') || 
-    combined.includes('web') || 
-    combined.includes('app') || 
-    combined.includes('software') || 
-    combined.includes('full stack') || 
-    combined.includes('mern') || 
-    combined.includes('react') || 
-    combined.includes('node');
-
-  const isFormalJobOnly = 
-    combined.includes('salary:') || 
-    combined.includes('stipend:') || 
-    combined.includes('working hours:') || 
-    combined.includes('employmenttype') || 
-    combined.includes('schema.org');
-
-  const isProject = (hasProjectIntent && hasTechDeliverable) && !isFormalJobOnly;
-
-  if (isProject) {
+  if (isFreelanceGig) {
     return {
       subject: `Full-Stack Web & App Development Proposal — ${CANDIDATE.name}`,
-      body: `Assalam-o-Alaikum / Hello,
+      body: `Hello ${company || 'Hiring Team'},
 
-I saw your requirement regarding your project / website development needs.
+I saw your requirement regarding your development project / website needs.
 
 I am Rizwan Ullah, an experienced Full-Stack MERN & Software Developer. I can take complete ownership of your project and build a high-performance, beautifully designed, and fully responsive website or mobile application from concept to full launch.
 
-Why Work With Me on Your Project:
+Why Work With Me:
 ✅ Pixel-perfect, responsive UI/UX (React.js, Next.js, Tailwind CSS)
 ✅ Robust, scalable backend & REST APIs (Node.js, Express, MongoDB, PostgreSQL)
 ✅ Full-stack integration, secure authentication & fast loading speed
@@ -351,13 +329,108 @@ Portfolio & Live Production Work:
 - 💻 GitHub Repositories: ${CANDIDATE.github}
 - 📞 Direct WhatsApp / Phone: ${CANDIDATE.phone}
 
-My CV and technical profile are attached for your evaluation. I am available to start immediately — let’s connect on WhatsApp (+92 325 5984244) or reply to discuss your project requirements!
+My CV and technical profile are attached for your evaluation. I am available to start immediately — let's connect to discuss your project requirements!
 
 Best regards,
 ${CANDIDATE.name}
 Full-Stack Web & Software Developer
 Email: ${CANDIDATE.email}
 Phone / WhatsApp: ${CANDIDATE.phone}`
+    };
+  } else if (
+    combined.includes('ai') ||
+    combined.includes('machine learning') ||
+    combined.includes('computer vision') ||
+    combined.includes('llm') ||
+    combined.includes('opencv') ||
+    combined.includes('deep learning')
+  ) {
+    return {
+      subject: `Application for ${title} — ${CANDIDATE.name} (AI & Full-Stack Developer)`,
+      body: `Dear Hiring Team at ${company || 'Engineering Team'},
+
+I am excited to submit my application for the ${title} position.
+
+As a Full-Stack & Software Developer with hands-on experience integrating AI workflows, LLM APIs, and intelligent web applications, I combine solid software engineering fundamentals with modern AI tooling. I build resilient backend architectures, integrate REST/GraphQL APIs, and deploy performant interfaces across React, Next.js, and Python.
+
+Candidate Overview & Live Projects:
+- 👤 Candidate: ${CANDIDATE.name}
+- 🌐 Live Portfolio & Demos: ${CANDIDATE.portfolio}
+- 💻 GitHub Repositories: ${CANDIDATE.github}
+- 💼 LinkedIn Profile: ${CANDIDATE.linkedin}
+- 📞 Contact / WhatsApp: ${CANDIDATE.phone} (Backup: ${CANDIDATE.backupPhone || '+92 317 9500901'})
+
+Please find my CV attached for your review. I am available to join immediately and look forward to discussing how my skills align with your goals.
+
+Best regards,
+${CANDIDATE.name}
+Full-Stack & AI Software Developer
+Email: ${CANDIDATE.email}
+Phone: ${CANDIDATE.phone}`
+    };
+  } else if (
+    combined.includes('backend') ||
+    combined.includes('node') ||
+    combined.includes('python') ||
+    combined.includes('django') ||
+    combined.includes('fastapi') ||
+    combined.includes('golang') ||
+    combined.includes('microservice') ||
+    combined.includes('database')
+  ) {
+    return {
+      subject: `Application for ${title} — ${CANDIDATE.name} (Backend & Software Developer)`,
+      body: `Dear Hiring Team at ${company || 'Engineering Team'},
+
+I am writing to express my strong enthusiasm for the ${title} opportunity.
+
+With extensive experience building scalable backend architectures, RESTful APIs, data automation pipelines, and database solutions using Node.js, Express, Python, PostgreSQL, and MongoDB, I specialize in writing clean, maintainable code with high algorithmic efficiency and seamless cloud deployment.
+
+Candidate Overview & Code Repositories:
+- 👤 Candidate: ${CANDIDATE.name}
+- 🌐 Live Portfolio & Demos: ${CANDIDATE.portfolio}
+- 💻 GitHub Repositories: ${CANDIDATE.github}
+- 💼 LinkedIn Profile: ${CANDIDATE.linkedin}
+- 📞 Direct Phone / WhatsApp: ${CANDIDATE.phone} (Backup: ${CANDIDATE.backupPhone || '+92 317 9500901'})
+
+Please find my CV attached for your detailed evaluation. I am available to start immediately and would love to connect for an introductory interview.
+
+Warm regards,
+${CANDIDATE.name}
+Software & Backend Developer
+Email: ${CANDIDATE.email}
+Phone: ${CANDIDATE.phone}`
+    };
+  } else if (
+    combined.includes('frontend') ||
+    combined.includes('react') ||
+    combined.includes('next.js') ||
+    combined.includes('ui/ux') ||
+    combined.includes('vue') ||
+    combined.includes('angular')
+  ) {
+    return {
+      subject: `Application for ${title} — ${CANDIDATE.name} (Frontend & React Developer)`,
+      body: `Dear Hiring Team at ${company || 'Hiring Team'},
+
+I am writing to apply for the ${title} role.
+
+As a dedicated Frontend & Full-Stack Developer, I specialize in crafting responsive, high-performance web applications using React.js, Next.js, TypeScript, Tailwind CSS, and modern state management. I have hands-on experience building intuitive user experiences, connecting complex REST/GraphQL APIs, and deploying production web apps.
+
+Candidate Overview & Live Samples:
+- 👤 Candidate: ${CANDIDATE.name}
+- 🌐 Live Portfolio & Projects: ${CANDIDATE.portfolio}
+- 💻 GitHub Repositories: ${CANDIDATE.github}
+- 💼 LinkedIn Profile: ${CANDIDATE.linkedin}
+- 📞 Direct Phone / WhatsApp: ${CANDIDATE.phone} (Backup: ${CANDIDATE.backupPhone || '+92 317 9500901'})
+
+My resume is attached for your evaluation. I am ready to start immediately and look forward to hearing from you.
+
+Best regards,
+${CANDIDATE.name}
+Frontend & Full-Stack Developer
+Email: ${CANDIDATE.email}
+Phone: ${CANDIDATE.phone}`
     };
   } else if (
     combined.includes('data entry') ||
@@ -367,7 +440,7 @@ Phone / WhatsApp: ${CANDIDATE.phone}`
   ) {
     return {
       subject: `Application for ${title} — ${CANDIDATE.name}`,
-      body: `Respected Hiring Team at ${company || 'Hiring Organization'},
+      body: `Dear Hiring Team at ${company || 'Hiring Organization'},
 
 I am writing to express my strong interest in the ${title} position.
 
@@ -378,7 +451,7 @@ Candidate Overview:
 - 🌐 Online Portfolio: ${CANDIDATE.portfolio}
 - 💼 LinkedIn Profile: ${CANDIDATE.linkedin}
 - 💻 GitHub Profile: ${CANDIDATE.github}
-- 📞 Direct Contact / WhatsApp: ${CANDIDATE.phone}
+- 📞 Direct Contact / WhatsApp: ${CANDIDATE.phone} (Backup: ${CANDIDATE.backupPhone || '+92 317 9500901'})
 
 My complete resume is attached to this email. I am available immediately for an interview and look forward to hearing from you.
 
@@ -387,57 +460,26 @@ ${CANDIDATE.name}
 Email: ${CANDIDATE.email}
 Phone: ${CANDIDATE.phone}`
     };
-  } else if (
-    combined.includes('python') ||
-    combined.includes('ai') ||
-    combined.includes('machine learning') ||
-    combined.includes('backend') ||
-    combined.includes('django') ||
-    combined.includes('fastapi')
-  ) {
-    return {
-      subject: `Software Engineering Application: ${title} — ${CANDIDATE.name}`,
-      body: `Dear Hiring Team at ${company || 'Engineering Team'},
-
-I am excited to submit my application for the ${title} opportunity.
-
-With extensive experience building resilient backend architectures, RESTful APIs, data automation pipelines, and scalable web solutions, I specialize in clean code, algorithmic efficiency, and seamless database integration. I adapt quickly to new tech stacks and collaborate smoothly in agile environments.
-
-Candidate Overview & Demos:
-- 👤 Full Name: ${CANDIDATE.name}
-- 🌐 Live Portfolio & Demos: ${CANDIDATE.portfolio}
-- 💻 GitHub Repositories: ${CANDIDATE.github}
-- 💼 LinkedIn: ${CANDIDATE.linkedin}
-- 📞 Contact / WhatsApp: ${CANDIDATE.phone}
-
-Please find my CV attached for your review. I would welcome the opportunity to discuss how my technical expertise can support your current projects.
-
-Best regards,
-${CANDIDATE.name}
-Software & Full-Stack Developer
-Email: ${CANDIDATE.email}
-Phone: ${CANDIDATE.phone}`
-    };
   } else {
-    // Default: Full Stack Developer / MERN / React / Frontend / Web Developer
+    // Default: Full Stack Developer / Software Engineer / MERN
     return {
-      subject: `Application for ${title} — ${CANDIDATE.name} (Full-Stack & MERN Developer)`,
-      body: `Dear Hiring Team at ${company || 'Hiring Team'},
+      subject: `Application for ${title} — ${CANDIDATE.name} (Full-Stack & Software Developer)`,
+      body: `Dear Hiring Team at ${company || 'Engineering Team'},
 
 I am writing to express my strong enthusiasm for the ${title} role.
 
-As a dedicated Full-Stack Software Developer, I specialize in designing and shipping scalable web applications using the MERN stack (MongoDB, Express.js, React.js, Node.js), Next.js, TypeScript, and modern state management. I have hands-on experience developing intuitive user experiences, robust REST/GraphQL APIs, secure authentication, and cloud-deployed microservices.
+As a dedicated Full-Stack Software Developer, I specialize in designing and shipping scalable web applications using the MERN stack (MongoDB, Express.js, React.js, Node.js), Next.js, TypeScript, and modern REST APIs. I have hands-on experience developing intuitive user experiences, robust backend services, secure authentication, and cloud-deployed solutions.
 
 Core Technical Strengths:
 - Frontend: React.js, Next.js, Redux Toolkit, Tailwind CSS, HTML5/CSS3, JavaScript (ES6+), TypeScript
-- Backend: Node.js, Express.js, REST APIs, Microservices, Webhooks
-- Databases & Cloud: MongoDB, PostgreSQL, Firebase, AWS, Docker, Vercel, Railway
+- Backend: Node.js, Express.js, REST APIs, Microservices, Webhooks, Python
+- Databases & Cloud: MongoDB, PostgreSQL, Firebase, Docker, Vercel, Railway, Git
 
 Portfolio & Work Highlights:
 - 🌐 Live Portfolio & Projects: ${CANDIDATE.portfolio}
 - 💻 GitHub Repositories: ${CANDIDATE.github}
 - 💼 LinkedIn Profile: ${CANDIDATE.linkedin}
-- 📞 Direct Phone / WhatsApp: ${CANDIDATE.phone}
+- 📞 Direct Phone / WhatsApp: ${CANDIDATE.phone} (Backup: ${CANDIDATE.backupPhone || '+92 317 9500901'})
 
 My resume is attached for your detailed evaluation. I am available to start immediately and would love to connect for an introductory interview.
 

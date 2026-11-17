@@ -898,37 +898,12 @@ async function processIncomingMessage(msg, preloadedChat = null) {
     let pitch = '';
     const lowerRole = (title + ' ' + text).toLowerCase();
 
-    const hasProjectIntent = 
-      lowerRole.includes('project') || 
-      lowerRole.includes('freelance') || 
-      lowerRole.includes('client') || 
-      lowerRole.includes('gig') || 
-      lowerRole.includes('contract') || 
-      lowerRole.includes('build') || 
-      lowerRole.includes('need') || 
-      lowerRole.includes('looking for someone') || 
-      lowerRole.includes('budget') ||
-      lowerRole.includes('custom website') ||
-      lowerRole.includes('landing page');
-
-    const hasTechDeliverable = 
-      lowerRole.includes('website') || 
-      lowerRole.includes('web') || 
-      lowerRole.includes('app') || 
-      lowerRole.includes('software') || 
-      lowerRole.includes('full stack') || 
-      lowerRole.includes('mern') || 
-      lowerRole.includes('react') || 
-      lowerRole.includes('node');
-
-    const isFormalJobOnly = 
-      lowerRole.includes('salary:') || 
-      lowerRole.includes('stipend:') || 
-      lowerRole.includes('working hours:') || 
-      lowerRole.includes('employmenttype') || 
-      lowerRole.includes('schema.org');
-
-    const isProject = (hasProjectIntent && hasTechDeliverable) && !isFormalJobOnly;
+    const isProject = (
+      lowerRole.includes('freelance gig') || 
+      lowerRole.includes('freelance project') || 
+      lowerRole.includes('looking for a freelancer') ||
+      lowerRole.includes('need a freelancer')
+    ) && !lowerRole.includes('full-time') && !lowerRole.includes('engineer') && !lowerRole.includes('developer role');
 
     if (isProject) {
       pitch = `Salam! I saw your post regarding your website / application development project.
