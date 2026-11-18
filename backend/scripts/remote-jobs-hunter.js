@@ -240,21 +240,22 @@ async function fetchHackerNewsWhoIsHiring() {
     const userRes = await fetch('https://hacker-news.firebaseio.com/v0/user/whoishiring.json', { signal: AbortSignal.timeout(8000) });
     if (!userRes.ok) return jobs;
     const userData = await userRes.json();
-    const candidateThreadIds = (userData.submitted || []).slice(0, 8);
+    // Scan all active monthly hiring & freelancer threads across 2026 (November back to January)
+    const candidateThreadIds = (userData.submitted || []).slice(0, 35);
 
     for (const threadId of candidateThreadIds) {
       try {
         const threadRes = await fetch(`https://hacker-news.firebaseio.com/v0/item/${threadId}.json`, { signal: AbortSignal.timeout(8000) });
         if (!threadRes.ok) continue;
         const thread = await threadRes.json();
-        if (!thread || !thread.title || !thread.title.includes('Who is hiring?')) continue;
+        if (!thread || !thread.title || (!thread.title.includes('Who is hiring?') && !thread.title.includes('Seeking freelancer?'))) continue;
 
-        console.log(`📡 Ingesting HN Hiring Thread: "${thread.title}" (${(thread.kids || []).length} comments)`);
-        // Scan up to 150 comments per monthly thread for hundreds of fresh recruiter emails
-        const commentIds = (thread.kids || []).slice(0, 150);
+        console.log(`📡 Ingesting HN Thread: "${thread.title}" (${(thread.kids || []).length} comments)`);
+        // Scan up to 200 comments per monthly thread for fresh recruiter and founder emails
+        const commentIds = (thread.kids || []).slice(0, 200);
 
-        for (let i = 0; i < commentIds.length; i += 15) {
-          const batch = commentIds.slice(i, i + 15);
+        for (let i = 0; i < commentIds.length; i += 20) {
+          const batch = commentIds.slice(i, i + 20);
           const fetched = await Promise.all(
             batch.map(id => fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`, { signal: AbortSignal.timeout(6000) }).then(r => r.json()).catch(() => null))
           );
@@ -339,7 +340,8 @@ async function scanHighVolumeRemoteJobs(whatsappClient = null) {
 
   for (const job of allJobs) {
     if (!job || !job.title || !job.id) continue;
-    if (processedJobIds.has(job.id)) continue;
+    // For non-HN jobs, cache check prevents repetitive processing; HN jobs rely on email registry deduplication
+    if (job.source !== 'hackernews' && processedJobIds.has(job.id)) continue;
     processedJobIds.add(job.id);
 
     // Filter using candidate's strict tech relevance shield
