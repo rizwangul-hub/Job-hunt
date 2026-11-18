@@ -121,6 +121,11 @@ function isRelevantTechJobOrProject(title = '', text = '', location = '') {
   const combined = (title + ' ' + text).toLowerCase();
   const lowerTitle = (title || '').toLowerCase().trim();
 
+  // 0. Exclude candidate profiles seeking work (e.g. "SEEKING WORK" posts)
+  if (lowerTitle.includes('seeking work') || combined.startsWith('seeking work') || /\bseeking\s+work\b/i.test(combined)) {
+    return { relevant: false, reason: 'Candidate seeking work profile, not a job vacancy.' };
+  }
+
   // 1. Exclude if title contains explicit non-tech role
   for (const exclusion of NON_TECH_EXCLUSIONS) {
     if (lowerTitle.includes(exclusion)) {

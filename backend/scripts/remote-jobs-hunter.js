@@ -261,8 +261,11 @@ async function fetchHackerNewsWhoIsHiring() {
           );
 
           for (const item of fetched) {
-            if (!item || !item.text || item.deleted) continue;
+            if (!item || !item.text || item.deleted || item.dead) continue;
             const plain = item.text.replace(/<[^>]+>/g, ' ').replace(/&#x2F;/g, '/').replace(/&amp;/g, '&');
+            
+            // STRICT EXCLUSION: Skip job-seekers offering services ("SEEKING WORK"), only target hiring managers
+            if (/seeking\s+work/i.test(plain) || plain.toUpperCase().startsWith('SEEKING WORK')) continue;
             const firstLine = plain.split('\n')[0].trim();
             const parts = firstLine.split('|');
             const company = parts.length > 0 ? parts[0].trim() : 'Tech Startup';
