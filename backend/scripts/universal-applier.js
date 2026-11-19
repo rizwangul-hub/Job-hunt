@@ -510,7 +510,7 @@ async function sendApplicationEmail({ toEmail, title, company, description, sour
 
   const cleanEmail = toEmail.toLowerCase().trim();
 
-  // Guard against dummy, test, and placeholder domains
+  // Guard against dummy, platform support, and placeholder domains
   if (
     cleanEmail.includes('fintechmobile.io') ||
     cleanEmail.includes('innovatex.io') ||
@@ -519,9 +519,17 @@ async function sendApplicationEmail({ toEmail, title, company, description, sour
     cleanEmail.includes('example.com') ||
     cleanEmail.includes('test.com') ||
     cleanEmail.includes('domain.com') ||
-    cleanEmail.includes('sample.com')
+    cleanEmail.includes('sample.com') ||
+    cleanEmail.includes('support@whatsapp.com') ||
+    cleanEmail.includes('support@facebook.com') ||
+    cleanEmail.includes('support@instagram.com') ||
+    cleanEmail.startsWith('noreply@') ||
+    cleanEmail.startsWith('no-reply@') ||
+    cleanEmail.startsWith('donotreply@') ||
+    cleanEmail.startsWith('mailer-daemon@') ||
+    cleanEmail.startsWith('postmaster@')
   ) {
-    console.log(`🛡️ [DUMMY DOMAIN SHIELD]: Skipping real email send to mock/dummy address: ${cleanEmail}`);
+    console.log(`🛡️ [SYSTEM/DUMMY DOMAIN SHIELD]: Skipping real email send to platform/mock address: ${cleanEmail}`);
     return false;
   }
 

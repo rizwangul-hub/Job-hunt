@@ -81,7 +81,9 @@ function extractEmails(text) {
     const low = e.toLowerCase();
     return !low.endsWith('.png') && !low.endsWith('.jpg') && !low.endsWith('.svg') &&
            !low.includes('example.com') && !low.includes('google.com') && !low.includes('w3.org') &&
-           !low.includes('sentry.io') && !low.includes('schema.org') && !low.includes('duckduckgo');
+           !low.includes('sentry.io') && !low.includes('schema.org') && !low.includes('duckduckgo') &&
+           !low.includes('whatsapp.com') && !low.includes('facebook.com') && !low.includes('instagram.com') &&
+           !low.startsWith('support@') && !low.startsWith('noreply@') && !low.startsWith('no-reply@');
   });
 }
 
