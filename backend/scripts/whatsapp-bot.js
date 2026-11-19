@@ -505,6 +505,75 @@ function handleHttpRequest(req, res) {
     return;
   }
 
+  // Direct WhatsApp dispatch endpoint
+  if (req.url === '/api/send-message' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body);
+        const { to, message, sendCV = true } = payload;
+        if (!to || !message) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'Missing to or message' }));
+          return;
+        }
+
+        let cleanNumber = to.replace(/\D/g, '');
+        if (cleanNumber.startsWith('03')) cleanNumber = '92' + cleanNumber.substring(1);
+        else if (!cleanNumber.startsWith('92')) cleanNumber = '92' + cleanNumber;
+        let targetJid = `${cleanNumber}@c.us`;
+
+        if (!isOnline || !client) {
+          res.writeHead(503, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'WhatsApp is not connected' }));
+          return;
+        }
+
+        // Always use standard phone JID (@c.us) to avoid @lid memoization errors
+        targetJid = `${cleanNumber}@c.us`;
+        console.log(`💬 [DIRECT WHATSAPP SEND] Target phone JID: ${targetJid}`);
+
+        // Ensure chat model is loaded in WhatsApp Web Store via findOrCreateLatestChat
+        try {
+          await client.pupPage.evaluate(async (jid) => {
+            try {
+              const wid = window.require('WAWebWidFactory').createWid(jid);
+              await window.require('WAWebFindChatAction').findOrCreateLatestChat(wid);
+            } catch (e) {}
+          }, targetJid);
+          await new Promise(r => setTimeout(r, 1000));
+        } catch (openErr) {}
+
+        await client.sendMessage(targetJid, message);
+        console.log(`✅ [DIRECT WHATSAPP SENT] Message delivered to ${targetJid}`);
+
+        if (sendCV) {
+          try {
+            const cvPath = findCV();
+            if (cvPath && fs.existsSync(cvPath)) {
+              const media = MessageMedia.fromFilePath(cvPath);
+              await client.sendMessage(targetJid, media, { caption: `CV - Rizwan Ullah (Software Developer)` });
+              console.log(`📎 [DIRECT WHATSAPP CV] Sent Resume.pdf to ${targetJid}`);
+            }
+          } catch (cvErr) {
+            console.log(`Notice sending CV media: ${cvErr.message}`);
+          }
+        }
+
+        await sendCandidateAlert(`🎉 *[CLIENT PROPOSAL SENT]*\n\n📱 *To:* +${cleanNumber}\n💬 *Project:* Massage Center Website (Bahria Town)\n🕒 *Time:* ${new Date().toLocaleTimeString()}`);
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, targetJid }));
+      } catch (err) {
+        console.error(`Direct send error: ${err.message}`);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
   if ((req.url === '/qr.png' || req.url === '/qr') && currentQrBuffer) {
     res.writeHead(200, { 'Content-Type': 'image/png' });
     res.end(currentQrBuffer);
