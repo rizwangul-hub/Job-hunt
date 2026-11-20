@@ -520,8 +520,15 @@ function handleHttpRequest(req, res) {
         }
 
         let cleanNumber = to.replace(/\D/g, '');
-        if (cleanNumber.startsWith('03')) cleanNumber = '92' + cleanNumber.substring(1);
-        else if (!cleanNumber.startsWith('92')) cleanNumber = '92' + cleanNumber;
+        if (cleanNumber.startsWith('03') && cleanNumber.length === 11) {
+          cleanNumber = '92' + cleanNumber.substring(1);
+        } else if (cleanNumber.length === 10 && /^[6-9]/.test(cleanNumber)) {
+          cleanNumber = '91' + cleanNumber;
+        } else if (to.startsWith('+')) {
+          cleanNumber = to.replace(/\D/g, '');
+        } else if (!cleanNumber.startsWith('92') && !cleanNumber.startsWith('91') && !cleanNumber.startsWith('1')) {
+          cleanNumber = '92' + cleanNumber;
+        }
         let targetJid = `${cleanNumber}@c.us`;
 
         if (!isOnline || !client) {
