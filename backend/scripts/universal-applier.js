@@ -25,7 +25,8 @@ const CANDIDATE = {
   backupPhone: process.env.CANDIDATE_BACKUP_PHONE || '+92 317 9500901',
   backupCleanPhone: '03179500901',
   backupWhatsappJid: '923179500901@c.us',
-  alertJids: ['923255984244@c.us', '923179500901@c.us'],
+  alertJids: ['923255984244@c.us'], // Routine job applications sent ONLY to primary (03255984244)
+  criticalAlertJids: ['923255984244@c.us', '923179500901@c.us'], // Recruiter replies, client messages & system bugs sent to BOTH
   portfolio: process.env.CANDIDATE_PORTFOLIO || 'https://full-stack-portfolio-coral.vercel.app',
   linkedin: process.env.CANDIDATE_LINKEDIN || 'https://www.linkedin.com/in/rizwanmerndev',
   github: process.env.CANDIDATE_GITHUB || 'https://github.com/rizwangul-hub'
@@ -643,7 +644,8 @@ async function notifyCandidateOnWhatsApp(whatsappClient, { title, company, chann
   const urlDisplay = sourceUrl ? `\n🔗 *Job Post Link:* ${sourceUrl}` : '';
   const alertText = `🎉 *AUTO-APPLICATION DISPATCHED!*\n\n💼 *Role:* ${title}\n🏢 *Company:* ${company || 'Tech Company'}\n📡 *Found On:* ${channel.toUpperCase()}\n✉️ *Applied To:* ${contactMethod}${urlDisplay}\n🕒 *Time:* ${new Date().toLocaleString()}\n\n_Applied automatically with your Resume.pdf, Portfolio, LinkedIn & GitHub!_`;
 
-  // 1. WhatsApp Notification directly to both primary and backup candidate phones
+  // 1. WhatsApp Notification: routine application dispatched ONLY to primary candidate phone (03255984244)
+  // Backup phone 03179500901 is reserved strictly for recruiter interview calls, client replies, and system bugs
   if (whatsappClient && typeof whatsappClient.sendMessage === 'function') {
     const alertTargets = CANDIDATE.alertJids || [CANDIDATE.whatsappJid];
     for (const jid of alertTargets) {

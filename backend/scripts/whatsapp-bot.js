@@ -57,18 +57,20 @@ if (process.env.SMTP_USER && process.env.SMTP_PASS) {
   });
 }
 
-const CANDIDATE_PHONES = [
-  (process.env.CANDIDATE_WHATSAPP || '923255984244').replace(/[^\d]/g, ''),
-  (process.env.CANDIDATE_BACKUP_WHATSAPP || '923179500901').replace(/[^\d]/g, '')
-];
+const PRIMARY_PHONE = (process.env.CANDIDATE_WHATSAPP || '923255984244').replace(/[^\d]/g, '');
+const BACKUP_PHONE = (process.env.CANDIDATE_BACKUP_WHATSAPP || '923179500901').replace(/[^\d]/g, '');
 
-async function sendCandidateAlert(alertMsg) {
+// Candidate alert dispatcher:
+// - Routine job application dispatches -> sent ONLY to primary phone (+92 325 5984244)
+// - Recruiter replies, interview requests, client proposals, bugs & system updates -> sent to BOTH (+92 325 5984244 & +92 317 9500901)
+async function sendCandidateAlert(alertMsg, isRoutineApply = false) {
   if (isOnline && client && typeof client.sendMessage === 'function') {
-    for (const phone of CANDIDATE_PHONES) {
+    const targets = isRoutineApply ? [PRIMARY_PHONE] : [PRIMARY_PHONE, BACKUP_PHONE];
+    for (const phone of targets) {
       if (phone && phone.length >= 10) {
         try {
           await client.sendMessage(`${phone}@c.us`, alertMsg);
-          console.log(`📱 [ALERT DELIVERED] Notification sent to candidate WhatsApp (+${phone})`);
+          console.log(`📱 [ALERT DELIVERED] Notification sent to candidate WhatsApp (+${phone}) [RoutineApply: ${isRoutineApply}]`);
         } catch (e) {
           console.log(`Notice sending alert to +${phone}: ${e.message}`);
         }
@@ -1107,7 +1109,7 @@ Email: rizwangul535@gmail.com`;
               `📄 *CV:* Resume.pdf Attached\n` +
               `📞 *Phone / WhatsApp:* +92 325 5984244 / +92 317 9500901\n` +
               `⏰ *Time:* ${new Date().toLocaleTimeString()}`;
-            await sendCandidateAlert(alertMsg);
+            await sendCandidateAlert(alertMsg, true); // Routine apply: Primary phone only
           } catch (aErr) {}
         } catch (mailErr) {
           console.log(`⚠️ Email dispatch notice: ${mailErr.message}`);
@@ -1182,7 +1184,7 @@ Email: rizwangul535@gmail.com`;
                 `📄 *CV:* Attached & Pitch Delivered\n` +
                 `📞 *Phone / WhatsApp:* +92 325 5984244 / +92 317 9500901\n` +
                 `⏰ *Time:* ${new Date().toLocaleTimeString()}`;
-              await sendCandidateAlert(alertMsg);
+              await sendCandidateAlert(alertMsg, true); // Routine apply: Primary phone only
             } catch (aErr) {}
 
             // Send CV attachment with document flag and brief pause for chat creation
@@ -1362,7 +1364,7 @@ Email: rizwangul535@gmail.com`;
                     `📞 *Your Contact:* +92 325 5984244 / +92 317 9500901\n` +
                     `⏰ *Time:* ${new Date().toLocaleTimeString()}\n\n` +
                     `_RizAgent autonomously opened the link from WhatsApp and applied for you!_`;
-                  await sendCandidateAlert(alertMsg);
+                  await sendCandidateAlert(alertMsg, true); // Routine apply: Primary phone only
                 } catch (aErr) {}
               } catch (mailErr) {
                 console.log(`⚠️ Email notice: ${mailErr.message}`);
@@ -1484,7 +1486,7 @@ Email: rizwangul535@gmail.com`;
                   `📞 *Your Contact:* +92 325 5984244 / +92 317 9500901\n` +
                   `⏰ *Time:* ${new Date().toLocaleTimeString()}\n\n` +
                   `_RizAgent autonomously applied to the link for you!_`;
-                await sendCandidateAlert(alertMsg);
+                await sendCandidateAlert(alertMsg, true); // Routine apply: Primary phone only
               } catch (e) {}
             } catch (formErr) {
               console.log(`ℹ️ Form autofill notice: ${formErr.message}`);
